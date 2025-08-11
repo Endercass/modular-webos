@@ -45,7 +45,6 @@ export class ChannelRegistry implements Registry {
     return new Promise<RegistryValue>((resolve, reject) => {
       const id = this.getId();
       const onResponse = (msg: RefChannelMessage) => {
-        console.log("Debug: Received response for read:", msg);
         if (msg.id === id && msg.type === "response.get" && msg.key === key) {
           this.#channel.unsubscribe("read." + id);
           if (msg.value === undefined || msg.success === false) {

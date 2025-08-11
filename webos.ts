@@ -1,10 +1,6 @@
+import { API } from "./apis/api.ts";
 import { RefChannel, RefChannelMessage } from "./channel.ts";
 import { Registry } from "./registry.ts";
-
-export interface API {
-  name: string;
-  populate(reg: Registry): Promise<void>;
-}
 
 export class WebOS {
   #reg: Registry;
@@ -38,7 +34,7 @@ export class WebOS {
     console.log(`API "${api.name}" installed.`);
   }
   // Helper to typecast the API
-  async getAPI<T extends API>(name: string): Promise<T> {
+  getAPI<T extends API>(name: string): T {
     const api = this.api[name];
     if (!api) {
       throw new Error(`API "${name}" is not installed.`);

@@ -1,14 +1,12 @@
-type RegistryValuePrimitive =
+export type RegistryValue =
   | string
   | number
   | boolean
   | ArrayBuffer
   | Blob
   | File
-  | null;
-export type RegistryValue =
-  | RegistryValuePrimitive
-  | readonly RegistryValuePrimitive[];
+  | null
+  | readonly RegistryValue[];
 
 export interface Registry {
   read(key: string): Promise<any>;
