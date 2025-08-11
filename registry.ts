@@ -1,4 +1,11 @@
-type RegistryValuePrimitive = string | number | boolean | ArrayBuffer | null;
+type RegistryValuePrimitive =
+  | string
+  | number
+  | boolean
+  | ArrayBuffer
+  | Blob
+  | File
+  | null;
 export type RegistryValue =
   | RegistryValuePrimitive
   | readonly RegistryValuePrimitive[];
