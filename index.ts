@@ -4,3 +4,4 @@ export * from "./registry.ts";
 export * from "./memory_registry.ts";
 export * from "./channel.ts";
 export * from "./channel_registry.ts";
+export * from "./idb_registry.ts";

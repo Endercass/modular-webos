@@ -9,11 +9,13 @@
     <script type="module">
       let params = new URLSearchParams(window.location.search);
       if (!params.has("connect")) {
-        const memoryReg = new OS.MemoryRegistry();
-        window.os = new OS.WebOS(memoryReg);
+        const mainRegistry = params.has("memory")
+          ? new OS.MemoryRegistry()
+          : new OS.IDBRegistry();
+
+        window.os = new OS.WebOS(mainRegistry);
         os.setup();
         await os.registry.write("testkey", "testvalue");
-        console.log(await os.registry.read("testkey"));
 
         const rawBroadcastChannel = OS.createBroadcastRefChannel("testchannel");
 
@@ -29,10 +31,18 @@
           },
         });
 
-        os.registry.write("abc.counter1", 0);
-        os.registry.write("abc.counter2", 0);
-        os.registry.write("restricted.counter1", 0);
-        os.registry.write("restricted.counter2", 0);
+        if (!(await os.registry.has("abc.counter1"))) {
+          await os.registry.write("abc.counter1", 0);
+        }
+        if (!(await os.registry.has("abc.counter2"))) {
+          await os.registry.write("abc.counter2", 0);
+        }
+        if (!(await os.registry.has("restricted.counter1"))) {
+          await os.registry.write("restricted.counter1", 0);
+        }
+        if (!(await os.registry.has("restricted.counter2"))) {
+          await os.registry.write("restricted.counter2", 0);
+        }
 
         os.serve(filteredChannel);
       } else {
@@ -40,8 +50,6 @@
           OS.createBroadcastRefChannel("testchannel"),
         );
         window.os = new OS.WebOS(chanReg);
-
-        console.log(await os.registry.read("testkey"));
       }
 
       function createIncrDecrSample(name) {
@@ -74,19 +82,6 @@
       createIncrDecrSample("abc.counter2");
       createIncrDecrSample("restricted.counter1");
       createIncrDecrSample("restricted.counter2");
-
-      window.testSetRestricted = async () => {
-        console.log("set restricted");
-        await os.registry.write("restricted.testkey", "testvalue");
-      };
-      window.testGetRestricted = async () => {
-        console.log("get restricted");
-        console.log(await os.registry.read("restricted.testkey"));
-      };
-      window.testDeleteRestricted = async () => {
-        console.log("delete restricted");
-        await os.registry.delete("restricted.testkey");
-      };
     </script>
   </body>
 </html>

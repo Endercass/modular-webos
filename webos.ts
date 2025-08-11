@@ -54,17 +54,14 @@ export class WebOS {
     let lastId = 0;
     this.#reg.on("write", (key, value) => {
       lastId++;
-      console.log("Debug: Server Write event:", key, value);
       channel.send({ type: "request.set", key, value, id: lastId });
     });
     this.#reg.on("delete", (key) => {
       lastId++;
-      console.log("Debug: Server Delete event:", key);
       channel.send({ type: "request.delete", key, id: lastId });
     });
 
     channel.subscribe(async (msg: RefChannelMessage) => {
-      console.log("Debug: Server Received message:", msg);
       if (msg.type === "request.get") {
         try {
           const value = await this.#reg.read(msg.key);
