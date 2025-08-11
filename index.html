@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>title</title>
+  </head>
+  <body>
+    <script src="./os.js"></script>
+    <script type="module">
+      let params = new URLSearchParams(window.location.search);
+      if (!params.has("connect")) {
+        const memoryReg = new OS.MemoryRegistry();
+        window.os = new OS.WebOS(memoryReg);
+        os.setup();
+        await os.registry.write("testkey", "testvalue");
+        console.log(await os.registry.read("testkey"));
+
+        const rawBroadcastChannel = OS.createBroadcastRefChannel("testchannel");
+
+        const filteredChannel = OS.filterChannel(rawBroadcastChannel, {
+          get(key) {
+            return !key.startsWith("restricted.");
+          },
+          set(key, value) {
+            return !key.startsWith("restricted.");
+          },
+          delete(key) {
+            return !key.startsWith("restricted.");
+          },
+        });
+
+        os.registry.write("abc.counter1", 0);
+        os.registry.write("abc.counter2", 0);
+        os.registry.write("restricted.counter1", 0);
+        os.registry.write("restricted.counter2", 0);
+
+        os.serve(filteredChannel);
+      } else {
+        const chanReg = new OS.ChannelRegistry(
+          OS.createBroadcastRefChannel("testchannel"),
+        );
+        window.os = new OS.WebOS(chanReg);
+
+        console.log(await os.registry.read("testkey"));
+      }
+
+      function createIncrDecrSample(name) {
+        let wrapper = document.createElement("div");
+        let incrButton = document.createElement("button");
+        incrButton.textContent = `Increment ${name}`;
+        let decrButton = document.createElement("button");
+        decrButton.textContent = `Decrement ${name}`;
+        let valueSpan = document.createElement("span");
+        valueSpan.textContent = "0";
+        wrapper.appendChild(incrButton);
+        wrapper.appendChild(decrButton);
+        wrapper.appendChild(valueSpan);
+        document.body.appendChild(wrapper);
+
+        os.registry.watch(name, (value) => {
+          valueSpan.textContent = value;
+        });
+        incrButton.onclick = async () => {
+          let value = (await os.registry.read(name)) || 0;
+          await os.registry.write(name, value + 1);
+        };
+        decrButton.onclick = async () => {
+          let value = (await os.registry.read(name)) || 0;
+          await os.registry.write(name, value - 1);
+        };
+      }
+
+      createIncrDecrSample("abc.counter1");
+      createIncrDecrSample("abc.counter2");
+      createIncrDecrSample("restricted.counter1");
+      createIncrDecrSample("restricted.counter2");
+
+      window.testSetRestricted = async () => {
+        console.log("set restricted");
+        await os.registry.write("restricted.testkey", "testvalue");
+      };
+      window.testGetRestricted = async () => {
+        console.log("get restricted");
+        console.log(await os.registry.read("restricted.testkey"));
+      };
+      window.testDeleteRestricted = async () => {
+        console.log("delete restricted");
+        await os.registry.delete("restricted.testkey");
+      };
+    </script>
+  </body>
+</html>

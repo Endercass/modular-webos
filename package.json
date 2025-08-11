@@ -1,0 +1,9 @@
+{
+  "type": "module",
+  "scripts": {
+    "build": "esbuild index.ts --minify --bundle --platform=browser --global-name=OS --outfile=os.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.8"
+  }
+}
