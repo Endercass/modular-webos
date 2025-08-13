@@ -30,7 +30,7 @@ export class WebOS {
     }
 
     this.api[api.name] = api;
-    await api.populate(this.#reg);
+    await api.populate(this);
     console.log(`API "${api.name}" installed.`);
   }
   // Helper to typecast the API

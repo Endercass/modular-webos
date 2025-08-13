@@ -3,10 +3,24 @@ export type RegistryValue =
   | number
   | boolean
   | ArrayBuffer
+  | Uint8Array
+  | Int8Array
+  | Uint8ClampedArray
+  | Int16Array
+  | Uint16Array
+  | Int32Array
+  | Uint32Array
+  | Float32Array
+  | Float64Array
+  | BigInt64Array
+  | BigUint64Array
   | Blob
   | File
   | null
-  | readonly RegistryValue[];
+  | readonly RegistryValue[]
+  | {
+      readonly [key: string]: RegistryValue;
+    };
 
 export interface Registry {
   read(key: string): Promise<any>;

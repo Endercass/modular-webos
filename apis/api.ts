@@ -1,6 +1,6 @@
-import { Registry } from "../registry";
+import { type WebOS } from "../webos";
 
 export interface API {
   name: string;
-  populate(reg: Registry): Promise<void>;
+  populate(os: WebOS): Promise<void>;
 }
