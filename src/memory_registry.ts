@@ -1,5 +1,5 @@
 import { ref, type Ref } from "./ref";
-import { RegistryValue, type Registry } from "./registry.ts";
+import { type RegistryValue, type Registry } from "./registry.ts";
 
 export class MemoryRegistry implements Registry {
   #store: Map<string, Ref<RegistryValue>> = new Map();

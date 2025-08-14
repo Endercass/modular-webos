@@ -1,5 +1,5 @@
-import { RefChannel, RefChannelMessage } from "./channel";
-import { Registry, RegistryValue } from "./registry";
+import { type RefChannel, type RefChannelMessage } from "./channel";
+import { type Registry, type RegistryValue } from "./registry";
 
 export class ChannelRegistry implements Registry {
   #channel: RefChannel;

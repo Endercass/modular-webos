@@ -5,51 +5,16 @@
     <title>title</title>
   </head>
   <body>
-    <script src="./os.js"></script>
     <script type="module">
+      import * as Distro from "./dist/distro.js";
+
       let params = new URLSearchParams(window.location.search);
-      if (!params.has("connect")) {
-        const mainRegistry = params.has("memory")
-          ? new OS.MemoryRegistry()
-          : new OS.IDBRegistry();
 
-        window.os = new OS.WebOS(mainRegistry);
-        os.setup();
-        await os.registry.write("testkey", "testvalue");
-
-        const rawBroadcastChannel = OS.createBroadcastRefChannel("testchannel");
-
-        const filteredChannel = OS.filterChannel(rawBroadcastChannel, {
-          get(key) {
-            return !key.startsWith("restricted.");
-          },
-          set(key, value) {
-            return !key.startsWith("restricted.");
-          },
-          delete(key) {
-            return !key.startsWith("restricted.");
-          },
-        });
-
-        if (!(await os.registry.has("abc.counter1"))) {
-          await os.registry.write("abc.counter1", 0);
-        }
-        if (!(await os.registry.has("abc.counter2"))) {
-          await os.registry.write("abc.counter2", 0);
-        }
-        if (!(await os.registry.has("restricted.counter1"))) {
-          await os.registry.write("restricted.counter1", 0);
-        }
-        if (!(await os.registry.has("restricted.counter2"))) {
-          await os.registry.write("restricted.counter2", 0);
-        }
-
-        os.serve(filteredChannel);
+      if (params.has("connect")) {
+        window.os = await Distro.connect("broadcastchannel://os-demo");
       } else {
-        const chanReg = new OS.ChannelRegistry(
-          OS.createBroadcastRefChannel("testchannel"),
-        );
-        window.os = new OS.WebOS(chanReg);
+        window.os = await Distro.boot();
+        os.getAPI("me.endercass.server").serve("broadcastchannel://os-demo");
       }
 
       function createIncrDecrSample(name) {
@@ -80,8 +45,6 @@
 
       createIncrDecrSample("abc.counter1");
       createIncrDecrSample("abc.counter2");
-      createIncrDecrSample("restricted.counter1");
-      createIncrDecrSample("restricted.counter2");
     </script>
   </body>
 </html>

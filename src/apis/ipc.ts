@@ -1,6 +1,6 @@
 import { type RegistryValue } from "../registry";
 import { type WebOS } from "../webos";
-import { API } from "./api";
+import { type API } from "./api";
 
 export class IPCApi implements API {
   name = "me.endercass.ipc";

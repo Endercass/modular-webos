@@ -1,4 +1,4 @@
-import { type WebOS } from "../webos";
+import { type WebOS } from "../webos.ts";
 
 export interface API {
   name: string;

@@ -7,5 +7,7 @@ export * from "./channel_registry.ts";
 export * from "./idb_registry.ts";
 export * from "./apis/api.ts";
 export * from "./apis/ipc.ts";
+export * from "./apis/server.ts";
 export * from "./apis/service.ts";
 export * from "./apis/identity.ts";
+export * as util from "./util.ts";

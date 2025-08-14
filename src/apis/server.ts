@@ -1,58 +1,26 @@
-import { API } from "./apis/api.ts";
-import { RefChannel, RefChannelMessage } from "./channel.ts";
-import { Registry } from "./registry.ts";
+import { type RefChannel, type RefChannelMessage } from "../channel";
+import { uriToChannel } from "../util";
+import { type WebOS } from "../webos";
 
-export class WebOS {
-  #reg: Registry;
-  api: {
-    [key: string]: API;
-  } = {};
+export class ServerApi {
+  name = "me.endercass.server";
+  os: WebOS;
 
-  constructor(reg: Registry) {
-    this.#reg = reg;
+  async populate(os: WebOS): Promise<void> {
+    this.os = os;
   }
 
-  async setup() {
-    if (await this.#reg.has("system.initialized")) {
-      console.log("System already initialized.");
-      return;
+  async serve(channel: RefChannel | string | URL): Promise<void> {
+    if (typeof channel === "string" || channel instanceof URL) {
+      channel = uriToChannel(channel);
     }
 
-    this.#reg.write("system.initialized", true);
-  }
-
-  async installAPI(api: API): Promise<void> {
-    if (typeof api.name !== "string" || api.name.length === 0) {
-      throw new Error("API must have a valid name.");
-    }
-    if (this.api[api.name]) {
-      throw new Error(`API "${api.name}" is already installed.`);
-    }
-
-    this.api[api.name] = api;
-    await api.populate(this);
-    console.log(`API "${api.name}" installed.`);
-  }
-  // Helper to typecast the API
-  getAPI<T extends API>(name: string): T {
-    const api = this.api[name];
-    if (!api) {
-      throw new Error(`API "${name}" is not installed.`);
-    }
-    return api as T;
-  }
-
-  get registry(): Registry {
-    return this.#reg;
-  }
-
-  async serve(channel: RefChannel): Promise<void> {
     let lastId = 0;
-    this.#reg.on("write", (key, value) => {
+    this.os.registry.on("write", (key, value) => {
       lastId++;
       channel.send({ type: "request.set", key, value, id: lastId });
     });
-    this.#reg.on("delete", (key) => {
+    this.os.registry.on("delete", (key) => {
       lastId++;
       channel.send({ type: "request.delete", key, id: lastId });
     });
@@ -60,7 +28,7 @@ export class WebOS {
     channel.subscribe(async (msg: RefChannelMessage) => {
       if (msg.type === "request.get") {
         try {
-          const value = await this.#reg.read(msg.key);
+          const value = await this.os.registry.read(msg.key);
           channel.send({
             type: "response.get",
             key: msg.key,
@@ -79,7 +47,7 @@ export class WebOS {
         }
       } else if (msg.type === "request.set") {
         try {
-          await this.#reg.write(msg.key, msg.value);
+          await this.os.registry.write(msg.key, msg.value);
           channel.send({
             type: "response.set",
             success: true,
@@ -98,7 +66,7 @@ export class WebOS {
         }
       } else if (msg.type === "request.delete") {
         try {
-          await this.#reg.delete(msg.key);
+          await this.os.registry.delete(msg.key);
           channel.send({
             type: "response.delete",
             success: true,
@@ -115,7 +83,7 @@ export class WebOS {
         }
       } else if (msg.type === "request.list") {
         try {
-          const entries = await this.#reg.entries();
+          const entries = await this.os.registry.entries();
           channel.send({
             type: "response.list",
             entries,

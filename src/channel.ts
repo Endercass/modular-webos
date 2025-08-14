@@ -1,4 +1,4 @@
-import { RegistryValue } from "./registry";
+import { type RegistryValue } from "./registry";
 
 type RefChannelMessageRequest =
   | { type: "request.get"; key: string }
