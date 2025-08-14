@@ -1,10 +1,9 @@
-import { type Registry, type RegistryValue } from "../registry";
+import { type RegistryValue } from "../registry";
 import { type WebOS } from "../webos";
 import { API } from "./api";
 
 export class IPCApi implements API {
   name = "me.endercass.ipc";
-  root = this.name + ".channel";
   os: WebOS;
 
   async populate(os: WebOS): Promise<void> {
@@ -17,17 +16,19 @@ export class IPCApi implements API {
     namespace: string = "default",
     options: {
       bufferLength?: number;
+      root?: string;
     } = {},
   ): Promise<void> {
     options.bufferLength ??= 10;
+    options.root ??= this.name + ".channel";
     await this.os.registry.write(
-      `${this.root}.${namespace}.${channelName}`,
+      `${options.root}.${namespace}.${channelName}`,
       [],
     );
     await this.setOptions(channelName, options);
 
     await this.os.registry.watch(
-      `${this.root}.${namespace}.${channelName}`,
+      `${options.root}.${namespace}.${channelName}`,
       async (messages: RegistryValue) => {
         if (!Array.isArray(messages)) {
           throw new Error(`Channel "${channelName}" must be an array.`);
@@ -35,11 +36,11 @@ export class IPCApi implements API {
         if (
           messages.length >
           (await this.os.registry.read(
-            `${this.root}.${namespace}.${channelName}.bufferLength`,
+            `${options.root}.${namespace}.${channelName}.bufferLength`,
           ))
         ) {
           await this.os.registry.write(
-            `${this.root}.${namespace}.${channelName}`,
+            `${options.root}.${namespace}.${channelName}`,
             [messages[messages.length - 1]],
           );
           // This will be called again with the last message
@@ -57,14 +58,20 @@ export class IPCApi implements API {
     channelName: string,
     message: RegistryValue,
     namespace: string = "default",
+    options: {
+      root?: string;
+    } = {},
   ): Promise<void> {
+    options.root ??= this.name + ".channel";
     if (
-      !(await this.os.registry.has(`${this.root}.${namespace}.${channelName}`))
+      !(await this.os.registry.has(
+        `${options.root}.${namespace}.${channelName}`,
+      ))
     ) {
       throw new Error(`Channel "${channelName}" does not exist.`);
     }
     let messages: RegistryValue[] = await this.os.registry.read(
-      `${this.root}.${namespace}.${channelName}`,
+      `${options.root}.${namespace}.${channelName}`,
     );
 
     if (!Array.isArray(messages)) {
@@ -73,7 +80,7 @@ export class IPCApi implements API {
 
     messages.push(message);
     await this.os.registry.write(
-      `${this.root}.${namespace}.${channelName}`,
+      `${options.root}.${namespace}.${channelName}`,
       messages,
     );
   }
@@ -81,25 +88,34 @@ export class IPCApi implements API {
   async clear(
     channelName: string,
     namespace: string = "default",
+    options: {
+      root?: string;
+    } = {},
   ): Promise<void> {
+    options.root ??= this.name + ".channel";
     if (
-      !(await this.os.registry.has(`${this.root}.${namespace}.${channelName}`))
+      !(await this.os.registry.has(
+        `${options.root}.${namespace}.${channelName}`,
+      ))
     ) {
       throw new Error(`Channel "${channelName}" does not exist.`);
     }
     await this.os.registry.write(
-      `${this.root}.${namespace}.${channelName}`,
+      `${options.root}.${namespace}.${channelName}`,
       [],
     );
   }
 
   async setOptions(
     channelName: string,
-    options: { bufferLength?: number } = {},
+    options: { bufferLength?: number; root?: string } = {},
     namespace: string = "default",
   ): Promise<void> {
+    options.root ??= this.name + ".channel";
     if (
-      !(await this.os.registry.has(`${this.root}.${namespace}.${channelName}`))
+      !(await this.os.registry.has(
+        `${options.root}.${namespace}.${channelName}`,
+      ))
     ) {
       throw new Error(
         `Channel "${channelName}" does not exist in namespace "${namespace}".`,
@@ -107,9 +123,11 @@ export class IPCApi implements API {
     }
     options.bufferLength ??= 10;
     await this.os.registry.write(
-      `${this.root}.${namespace}.${channelName}.bufferLength`,
+      `${options.root}.${namespace}.${channelName}.bufferLength`,
       options.bufferLength,
     );
-    await this.clear(channelName, namespace);
+    await this.clear(channelName, namespace, {
+      root: options.root,
+    });
   }
 }
