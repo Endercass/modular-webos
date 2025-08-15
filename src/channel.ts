@@ -1,27 +1,28 @@
 import { type RegistryValue } from "./registry";
+import { WebOS } from "./webos";
 
 type RefChannelMessageRequest =
   | { type: "request.get"; key: string }
   | {
-      type: "request.set";
-      key: string;
-      value: RegistryValue | null;
-    }
+    type: "request.set";
+    key: string;
+    value: RegistryValue | null;
+  }
   | { type: "request.delete"; key: string }
   | { type: "request.list" };
 
 type RefChannelMessageResponse = {
   success: boolean;
 } & (
-  | {
+    | {
       type: "response.get";
       key: string;
       value?: RegistryValue | null;
     }
-  | { type: "response.set"; key: string; value: RegistryValue | null }
-  | { type: "response.delete"; key: string }
-  | { type: "response.list"; entries?: [string, RegistryValue][] }
-);
+    | { type: "response.set"; key: string; value: RegistryValue | null }
+    | { type: "response.delete"; key: string }
+    | { type: "response.list"; entries?: [string, RegistryValue][] }
+  );
 
 export type RefChannelMessage = { id: number } & (
   | RefChannelMessageRequest
@@ -34,7 +35,7 @@ export interface RefChannel {
   unsubscribe(name: string): void;
 }
 
-function createListenerQueue<T>() {
+export function createListenerQueue<T>() {
   // const listeners: ((value: T) => void)[] = [];
   const listeners: Record<string, (value: T) => void> = {};
   let closed = false;
@@ -300,4 +301,38 @@ export function filterChannel(
       }
     },
   };
+}
+
+export async function winToSwChannel(): Promise<RefChannel> {
+  const reg = await navigator.serviceWorker.register("/sw.js", { type: "module" })
+  const incoming = reg.installing || reg.waiting;
+  if (!reg.active) {
+    if ((!navigator.serviceWorker.controller) || !incoming) location.reload()
+    if (!incoming)
+      await new Promise(() => {
+        incoming!.addEventListener(
+          "statechange", (e: any) => {
+            if (e.target?.state === "activated") location.reload()
+          }
+        )
+      })
+  }
+
+  let q = createListenerQueue();
+
+  navigator.serviceWorker.addEventListener("message", async (evt) => {
+    q.push(evt.data)
+  })
+
+  return {
+    send(msg) {
+      navigator.serviceWorker.controller!.postMessage(msg)
+    },
+    subscribe(cb: (msg: any) => void, name = "anon." + Math.random().toString(36).substring(2, 8)) {
+      q.on(cb, name)
+    },
+    unsubscribe(name) {
+      q.off(name)
+    }
+  }
 }

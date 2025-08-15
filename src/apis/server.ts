@@ -12,7 +12,7 @@ export class ServerApi {
 
   async serve(channel: RefChannel | string | URL): Promise<void> {
     if (typeof channel === "string" || channel instanceof URL) {
-      channel = uriToChannel(channel);
+      channel = await uriToChannel(channel);
     }
 
     let lastId = 0;

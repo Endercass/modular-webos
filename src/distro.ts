@@ -19,7 +19,7 @@ export async function connect(
   channel: OS.RefChannel | string | URL,
 ): Promise<OS.WebOS> {
   if (typeof channel === "string" || channel instanceof URL) {
-    channel = OS.util.uriToChannel(channel.toString());
+    channel = await OS.util.uriToChannel(channel.toString());
   }
 
   const os = new OS.WebOS(new OS.ChannelRegistry(channel));

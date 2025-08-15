@@ -8,16 +8,9 @@
     <script type="module">
       import * as Distro from "./dist/distro.js";
 
-      let params = new URLSearchParams(window.location.search);
+      window.os = await Distro.connect("sw:///")
 
-      if (params.has("connect")) {
-        window.os = await Distro.connect("broadcastchannel://os-demo");
-      } else {
-        window.os = await Distro.boot();
-        os.getAPI("me.endercass.server").serve("broadcastchannel://os-demo");
-      }
-
-      function createIncrDecrSample(name) {
+      async function createIncrDecrSample(name) {
         let wrapper = document.createElement("div");
         let incrButton = document.createElement("button");
         incrButton.textContent = `Increment ${name}`;
@@ -29,6 +22,12 @@
         wrapper.appendChild(decrButton);
         wrapper.appendChild(valueSpan);
         document.body.appendChild(wrapper);
+
+        try {
+          await os.registry.read(name);
+        } catch(_) {
+          await os.registry.write(name, 0);
+        }
 
         os.registry.watch(name, (value) => {
           valueSpan.textContent = value;
