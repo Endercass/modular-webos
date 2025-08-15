@@ -10,9 +10,10 @@ async function setup(os: OS.WebOS): Promise<OS.WebOS> {
 }
 
 export async function boot(): Promise<OS.WebOS> {
-  const os = new OS.WebOS(new OS.IDBRegistry());
+  const os = await setup(new OS.WebOS(new OS.IDBRegistry()));
+  await os.getAPI<OS.ServiceApi>("me.endercass.service").clearFunctions()
 
-  return setup(os);
+  return os;
 }
 
 export async function connect(

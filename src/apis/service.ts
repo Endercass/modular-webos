@@ -11,6 +11,36 @@ export class ServiceApi implements API {
     this.os = os;
   }
 
+  async defineAnycastFunction<T extends (...args: RegistryValue[]) => Promise<RegistryValue>>(
+    name: string,
+    executorId: number,
+    func: T,
+    namespace: string = "default",
+    options: {
+      root?: string
+      bufferLength?: number,
+    } = {}
+  ) {
+    options.bufferLength ??= 10
+    options.root ??= this.name + ".function"
+    let ids: number[] = []
+
+    try {
+      ids = await this.os.registry.read(`${options.root}.${namespace}.${name}.anycast`)
+    } catch { }
+
+    if (!ids.includes(executorId)) {
+      ids.push(executorId)
+    }
+
+    await this.defineFunction((`${name}$${executorId}`), func, namespace, {
+      root: options.root,
+      bufferLength: options.bufferLength
+    });
+
+    this.os.registry.write(`${options.root}.${namespace}.${name}.anycast`, ids)
+  }
+
   async defineFunction<
     T extends (...args: RegistryValue[]) => Promise<RegistryValue>,
   >(
@@ -105,6 +135,19 @@ export class ServiceApi implements API {
       throw new Error("Arguments must be an array.");
     }
 
+    try {
+      const ids = await this.os.registry.read(`${options.root}.${namespace}.${name}.anycast`)
+      this.os.registry.write(`${options.root}.${namespace}.${name}.anycast`, [...ids.slice(1), ids[0]])
+
+      return await this.callFunction((`${name}$${ids[0]}`), args, namespace, {
+        root: options.root,
+        bufferLength: options.bufferLength,
+      })
+
+    } catch { }
+
+
+
     const ipc = this.os.getAPI<IPCApi>("me.endercass.ipc");
     const transactionId = crypto.randomUUID();
 
@@ -149,5 +192,16 @@ export class ServiceApi implements API {
     });
 
     return promise;
+  }
+
+  async clearFunctions(
+    namespace: string = "default",
+    options: {
+      root?: string
+    } = {}
+  ) {
+    options.root ??= this.name + ".function"
+    const all = await this.os.registry.keys();
+    await Promise.all(all.filter((k) => k.startsWith(`${options.root}.${namespace}`)).map(k => (console.log("deleting ", k), this.os.registry.delete(k))))
   }
 }

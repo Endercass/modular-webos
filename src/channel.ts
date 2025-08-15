@@ -326,7 +326,7 @@ export async function winToSwChannel(): Promise<RefChannel> {
 
   return {
     send(msg) {
-      navigator.serviceWorker.controller!.postMessage(msg)
+      reg.active!.postMessage(msg)
     },
     subscribe(cb: (msg: any) => void, name = "anon." + Math.random().toString(36).substring(2, 8)) {
       q.on(cb, name)
