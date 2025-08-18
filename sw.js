@@ -35,6 +35,44 @@ addEventListener("message", async (evt) => {
     }
 });
 
+addEventListener("fetch", (evt) => {
+    if (evt.request.method !== "GET") return
+
+    evt.respondWith((async ({ request }) => {
+        const url = new URL(request.url)
+        if (url.pathname.startsWith("/fs/")) {
+            const os = await getOS()
+            if (url.pathname.endsWith("/")) {
+                try {
+                    return new Response(JSON.stringify({ ok: await os.api["me.endercass.fs"].readDir(url.pathname.slice(3)) }), {
+                        headers: {
+                            "Content-Type": "application/json"
+                        }
+                    })
+                } catch (err) {
+                    return new Response(JSON.stringify({ err: err.message }), {
+                        headers: {
+                            "Content-Type": "application/json"
+                        }
+                    })
+                }
+            } else {
+                try {
+                    return new Response(await os.api["me.endercass.fs"].readFile(url.pathname.slice(3)))
+                } catch (err) {
+                    return new Response(JSON.stringify({ err: err.message }), {
+                        headers: {
+                            "Content-Type": "application/json"
+                        }
+                    })
+                }
+            }
+        }
+
+        return fetch(url)
+    })(evt))
+});
+
 addEventListener("install", async (event) => {
     self.skipWaiting()
 })
