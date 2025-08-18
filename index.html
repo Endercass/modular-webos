@@ -10,50 +10,18 @@
 
       window.os = await Distro.connect("sw:///")
 
-      async function createIncrDecrSample(name) {
-        let wrapper = document.createElement("div");
-        let incrButton = document.createElement("button");
-        incrButton.textContent = `Increment ${name}`;
-        let decrButton = document.createElement("button");
-        decrButton.textContent = `Decrement ${name}`;
-        let valueSpan = document.createElement("span");
-        valueSpan.textContent = "0";
-        wrapper.appendChild(incrButton);
-        wrapper.appendChild(decrButton);
-        wrapper.appendChild(valueSpan);
-        document.body.appendChild(wrapper);
-
+      
+      if (navigator.serviceWorker.controller) {
+        let tty = 1;
         try {
-          await os.registry.read(name);
-        } catch(_) {
-          await os.registry.write(name, 0);
-        }
-
-        os.registry.watch(name, (value) => {
-          valueSpan.textContent = value;
-        });
-        incrButton.onclick = async () => {
-          let value = (await os.registry.read(name)) || 0;
-          await os.registry.write(name, value + 1);
-        };
-        decrButton.onclick = async () => {
-          let value = (await os.registry.read(name)) || 0;
-          await os.registry.write(name, value - 1);
-        };
+          tty = await os.registry.read("me.endercass.boot.default-tty")
+        } catch {}
+        
+        location.href = "/tty/" + tty
+      } else {
+        location.reload()
       }
 
-      window.EXEC_ID = Math.round(Math.random() * 1e9)
-
-      const area = document.createElement("textarea");
-
-      await os.getAPI("me.endercass.service").defineAnycastFunction("testFunction", EXEC_ID, async function() {
-        area.value += "Executed from " + EXEC_ID + "!\n"
-      })
-
-      document.body.appendChild(area)
-
-      createIncrDecrSample("abc.counter1");
-      createIncrDecrSample("abc.counter2");
     </script>
   </body>
 </html>

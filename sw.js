@@ -35,6 +35,24 @@ addEventListener("message", async (evt) => {
     }
 });
 
+async function buildTTY(name) {
+    let html = `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <title>TTY ${encodeURIComponent(name)}</title>
+</head>
+<body style="background-color: black; color: white">
+    <script type="module">
+        import * as Distro from "/dist/distro.js"
+        window.os = await Distro.connect("sw:///")
+    </script>
+    <pre>Placeholder</pre>
+</body>
+</html>`
+    return html
+}
+
 addEventListener("fetch", (evt) => {
     if (evt.request.method !== "GET") return
 
@@ -67,6 +85,14 @@ addEventListener("fetch", (evt) => {
                     })
                 }
             }
+        }
+
+        if (url.pathname.startsWith("/tty/")) {
+            return new Response(await buildTTY(url.pathname.slice(5)), {
+                headers: {
+                    "Content-Type": "text/html"
+                }
+            })
         }
 
         return fetch(url)
