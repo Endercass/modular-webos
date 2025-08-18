@@ -10,4 +10,6 @@ export * from "./apis/ipc.ts";
 export * from "./apis/server.ts";
 export * from "./apis/service.ts";
 export * from "./apis/identity.ts";
+export * from "./apis/processes.ts";
+export * from "./apis/fs.ts";
 export * as util from "./util.ts";

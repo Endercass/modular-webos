@@ -62,8 +62,13 @@ export class ServiceApi implements API {
     }
 
     const ipc = this.os.getAPI<IPCApi>("me.endercass.ipc");
+    try {
+      await ipc.clear(name + ".call", namespace, {
+        root: options.root
+      })
+    } catch {}
 
-    ipc.listen(
+    await ipc.listen(
       name + ".call",
       async (callMessage: RegistryValue) => {
         callMessage = callMessage as {
@@ -187,7 +192,7 @@ export class ServiceApi implements API {
       },
     );
 
-    ipc.send(name + ".call", { args, transactionId }, namespace, {
+    await ipc.send(name + ".call", { args, transactionId }, namespace, {
       root: options.root,
     });
 

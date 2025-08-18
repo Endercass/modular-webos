@@ -28,7 +28,6 @@ export class MemoryRegistry implements Registry {
         callback(key);
       });
     } else {
-      console.log("Debug: Writing to registry:", key, value);
       this.listeners.write.forEach((callback) => {
         callback(key, value);
       });

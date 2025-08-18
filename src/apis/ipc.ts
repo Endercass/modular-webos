@@ -21,11 +21,15 @@ export class IPCApi implements API {
   ): Promise<void> {
     options.bufferLength ??= 10;
     options.root ??= this.name + ".channel";
-    await this.os.registry.write(
-      `${options.root}.${namespace}.${channelName}`,
-      [],
-    );
-    await this.setOptions(channelName, options);
+    try {
+      await this.os.registry.read(`${options.root}.${namespace}.${channelName}`,)
+    } catch {
+      await this.os.registry.write(
+        `${options.root}.${namespace}.${channelName}`,
+        [],
+      );
+    }
+    await this.setOptions(channelName, options, namespace);
 
     await this.os.registry.watch(
       `${options.root}.${namespace}.${channelName}`,
@@ -73,7 +77,6 @@ export class IPCApi implements API {
     let messages: RegistryValue[] = await this.os.registry.read(
       `${options.root}.${namespace}.${channelName}`,
     );
-
     if (!Array.isArray(messages)) {
       messages = [];
     }
@@ -100,6 +103,7 @@ export class IPCApi implements API {
     ) {
       throw new Error(`Channel "${channelName}" does not exist.`);
     }
+    console.log("clearing", channelName)
     await this.os.registry.write(
       `${options.root}.${namespace}.${channelName}`,
       [],
@@ -126,8 +130,5 @@ export class IPCApi implements API {
       `${options.root}.${namespace}.${channelName}.bufferLength`,
       options.bufferLength,
     );
-    await this.clear(channelName, namespace, {
-      root: options.root,
-    });
   }
 }

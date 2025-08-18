@@ -10,21 +10,28 @@ export class ServerApi {
     this.os = os;
   }
 
-  async serve(channel: RefChannel | string | URL): Promise<void> {
+  async serve(channel: RefChannel | string | URL): Promise<{ stop: () => void }> {
     if (typeof channel === "string" || channel instanceof URL) {
       channel = await uriToChannel(channel);
     }
 
+    let stopped = false;
+
     let lastId = 0;
     this.os.registry.on("write", (key, value) => {
-      lastId++;
-      channel.send({ type: "request.set", key, value, id: lastId });
+      if (!stopped) {
+        lastId++;
+        channel.send({ type: "request.set", key, value, id: lastId });
+      }
     });
     this.os.registry.on("delete", (key) => {
+      if (!stopped) {
       lastId++;
       channel.send({ type: "request.delete", key, id: lastId });
+      }
     });
 
+    let sub = crypto.randomUUID()
     channel.subscribe(async (msg: RefChannelMessage) => {
       if (msg.type === "request.get") {
         try {
@@ -94,6 +101,13 @@ export class ServerApi {
           channel.send({ type: "response.list", id: msg.id, success: false });
         }
       }
-    });
+    }, sub);
+
+    return {
+      stop() {
+        stopped = true;
+        channel.unsubscribe(sub)
+      },
+    }
   }
 }

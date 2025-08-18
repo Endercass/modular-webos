@@ -5,6 +5,21 @@ export class ChannelRegistry implements Registry {
   #channel: RefChannel;
   constructor(channel: RefChannel) {
     this.#channel = channel;
+    this.#channel.subscribe((msg) => {
+      if (msg.type === "request.set") {
+        this.listeners.write.forEach(cb => {
+          cb(msg.key, msg.value)
+        });
+      } else if (msg.type === "request.delete") {
+        this.listeners.delete.forEach(cb => {
+          cb(msg.key)
+        });
+      } else if (msg.type === "request.get") {
+        this.listeners.read.forEach(async cb => {
+          cb(msg.key, await this.read(msg.key))
+        })
+      }
+    })
   }
   #lastId = 0;
 
@@ -88,7 +103,6 @@ export class ChannelRegistry implements Registry {
     callback: (newValue: RegistryValue) => void,
   ): Promise<void> {
     callback(await this.read(key));
-
     this.#channel.subscribe((msg: RefChannelMessage) => {
       if (msg.type === "request.set" && msg.key === key) {
         callback(msg.value);
