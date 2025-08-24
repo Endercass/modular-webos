@@ -19,7 +19,7 @@ export async function boot(): Promise<OS.WebOS> {
   const fs = os.getAPI<OS.FsApi>("me.endercass.fs");
   await fs.register(
     "rootfs",
-    new OS.RegistryFs(os, "me.endercass.fs.impl.rootfs"),
+    new OS.LocalFS(await navigator.storage.getDirectory()),
   );
   await fs.mount("/", "rootfs");
   await fs.makeDir("/");
