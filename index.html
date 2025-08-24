@@ -8,20 +8,138 @@
     <script type="module">
       import * as Distro from "./dist/distro.js";
 
-      window.os = await Distro.connect("sw:///")
+      window.os = await Distro.connect("sw:///");
 
-      
-      if (navigator.serviceWorker.controller) {
-        let tty = 1;
-        try {
-          tty = await os.registry.read("me.endercass.boot.default-tty")
-        } catch {}
-        
-        location.href = "/tty/" + tty
-      } else {
-        location.reload()
+      const iframes = {};
+
+      const commandBar = document.createElement("input");
+      commandBar.style.position = "absolute";
+      commandBar.style.bottom = "0";
+      commandBar.style.left = "0";
+      commandBar.style.width = "100%";
+      commandBar.style.backgroundColor = "rgba(64, 64, 64, 0.8)";
+      commandBar.style.color = "white";
+      commandBar.style.fontFamily = "monospace";
+      commandBar.style.fontSize = "16px";
+      commandBar.style.border = "none";
+      commandBar.style.boxSizing = "border-box";
+      commandBar.style.outline = "none";
+      commandBar.style.zIndex = "1000";
+      commandBar.style.display = "none";
+
+      commandBar.addEventListener("blur", async () => {
+        if (commandBar.style.display === "block") {
+          await hideCommandBar();
+        }
+      });
+
+      commandBar.addEventListener("keydown", async (evt) => {
+        const k = evt.key.toLowerCase();
+
+        if (k === "enter") {
+          if (!commandBar.value) {
+            return;
+          }
+
+          if (commandBar.value.startsWith("con ")) {
+            const con = commandBar.value.slice(4).trim();
+            if (
+              (await os.registry.read("me.endercass.con.list")).includes(con)
+            ) {
+              await os.registry.write("me.endercass.con.current", con);
+            }
+          } else if (commandBar.value === "reboot") {
+            fetch("/reboot");
+            commandBar.blur();
+          }
+        } else if (k === "escape") {
+          commandBar.blur();
+        }
+      });
+
+      document.body.appendChild(commandBar);
+
+      function showCommandBar() {
+        commandBar.value = "";
+        commandBar.style.display = "block";
+        commandBar.focus();
       }
 
+      async function hideCommandBar() {
+        commandBar.style.display = "none";
+
+        const current = await os.registry.read("me.endercass.con.current");
+        if (iframes[current]) {
+          iframes[current].contentWindow.focus();
+        }
+      }
+
+      addEventListener("message", (evt) => {
+        if (evt.data?.type === "topFocus") {
+          showCommandBar();
+        }
+      });
+
+      addEventListener("keydown", (evt) => {
+        if (evt.altKey) {
+          if (evt.key.toLowerCase() == "escape") {
+            showCommandBar();
+          }
+        }
+      });
+
+      const div = document.createElement("div");
+      div.style.position = "absolute";
+      div.style.top = "0";
+      div.style.left = "0";
+      div.style.width = "100%";
+      div.style.height = "100%";
+      div.style.overflow = "hidden";
+      document.body.appendChild(div);
+
+      const display = crypto.randomUUID().split("-")[0];
+
+      const params = new URLSearchParams(window.location.search);
+
+      window.$if = iframes;
+
+      await os.registry.watch("me.endercass.con.list", (cons) => {
+        for (const t of cons) {
+          if (!iframes[t]) {
+            const iframe = document.createElement("iframe");
+            iframe.style.position = "absolute";
+            iframe.style.top = "0";
+            iframe.style.left = "0";
+            iframe.style.width = "100%";
+            iframe.style.height = "100%";
+            iframe.style.border = "none";
+            iframe.style.display = "none";
+            iframe.loading = "lazy";
+            iframe.src = `/con?display=${display}&name=${t}&idx=${params.get(
+              "idx",
+            )}&idy=${params.get("idy")}`;
+            div.appendChild(iframe);
+            iframes[t] = iframe;
+          }
+        }
+        for (const t in iframes) {
+          if (!cons.includes(t)) {
+            div.removeChild(iframes[t]);
+            delete iframes[t];
+          }
+        }
+      });
+
+      await os.registry.watch("me.endercass.con.current", (n) => {
+        for (const t in iframes) {
+          if (t === n) {
+            iframes[t].style.display = "block";
+            iframes[t].contentWindow.focus();
+          } else {
+            iframes[t].style.display = "none";
+          }
+        }
+      });
     </script>
   </body>
 </html>

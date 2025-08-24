@@ -11,34 +11,38 @@ export class ServiceApi implements API {
     this.os = os;
   }
 
-  async defineAnycastFunction<T extends (...args: RegistryValue[]) => Promise<RegistryValue>>(
+  async defineAnycastFunction<
+    T extends (...args: RegistryValue[]) => Promise<RegistryValue>,
+  >(
     name: string,
     executorId: number,
     func: T,
     namespace: string = "default",
     options: {
-      root?: string
-      bufferLength?: number,
-    } = {}
+      root?: string;
+      bufferLength?: number;
+    } = {},
   ) {
-    options.bufferLength ??= 10
-    options.root ??= this.name + ".function"
-    let ids: number[] = []
+    options.bufferLength ??= 10;
+    options.root ??= this.name + ".function";
+    let ids: number[] = [];
 
     try {
-      ids = await this.os.registry.read(`${options.root}.${namespace}.${name}.anycast`)
-    } catch { }
+      ids = await this.os.registry.read(
+        `${options.root}.${namespace}.${name}.anycast`,
+      );
+    } catch {}
 
     if (!ids.includes(executorId)) {
-      ids.push(executorId)
+      ids.push(executorId);
     }
 
-    await this.defineFunction((`${name}$${executorId}`), func, namespace, {
+    await this.defineFunction(`${name}$${executorId}`, func, namespace, {
       root: options.root,
-      bufferLength: options.bufferLength
+      bufferLength: options.bufferLength,
     });
 
-    this.os.registry.write(`${options.root}.${namespace}.${name}.anycast`, ids)
+    this.os.registry.write(`${options.root}.${namespace}.${name}.anycast`, ids);
   }
 
   async defineFunction<
@@ -64,8 +68,8 @@ export class ServiceApi implements API {
     const ipc = this.os.getAPI<IPCApi>("me.endercass.ipc");
     try {
       await ipc.clear(name + ".call", namespace, {
-        root: options.root
-      })
+        root: options.root,
+      });
     } catch {}
 
     await ipc.listen(
@@ -141,17 +145,19 @@ export class ServiceApi implements API {
     }
 
     try {
-      const ids = await this.os.registry.read(`${options.root}.${namespace}.${name}.anycast`)
-      this.os.registry.write(`${options.root}.${namespace}.${name}.anycast`, [...ids.slice(1), ids[0]])
+      const ids = await this.os.registry.read(
+        `${options.root}.${namespace}.${name}.anycast`,
+      );
+      this.os.registry.write(`${options.root}.${namespace}.${name}.anycast`, [
+        ...ids.slice(1),
+        ids[0],
+      ]);
 
-      return await this.callFunction((`${name}$${ids[0]}`), args, namespace, {
+      return await this.callFunction(`${name}$${ids[0]}`, args, namespace, {
         root: options.root,
         bufferLength: options.bufferLength,
-      })
-
-    } catch { }
-
-
+      });
+    } catch {}
 
     const ipc = this.os.getAPI<IPCApi>("me.endercass.ipc");
     const transactionId = crypto.randomUUID();
@@ -202,11 +208,15 @@ export class ServiceApi implements API {
   async clearFunctions(
     namespace: string = "default",
     options: {
-      root?: string
-    } = {}
+      root?: string;
+    } = {},
   ) {
-    options.root ??= this.name + ".function"
+    options.root ??= this.name + ".function";
     const all = await this.os.registry.keys();
-    await Promise.all(all.filter((k) => k.startsWith(`${options.root}.${namespace}`)).map(k => (console.log("deleting ", k), this.os.registry.delete(k))))
+    await Promise.all(
+      all
+        .filter((k) => k.startsWith(`${options.root}.${namespace}`))
+        .map((k) => this.os.registry.delete(k)),
+    );
   }
 }

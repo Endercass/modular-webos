@@ -22,7 +22,9 @@ export class IPCApi implements API {
     options.bufferLength ??= 10;
     options.root ??= this.name + ".channel";
     try {
-      await this.os.registry.read(`${options.root}.${namespace}.${channelName}`,)
+      await this.os.registry.read(
+        `${options.root}.${namespace}.${channelName}`,
+      );
     } catch {
       await this.os.registry.write(
         `${options.root}.${namespace}.${channelName}`,
@@ -103,7 +105,6 @@ export class IPCApi implements API {
     ) {
       throw new Error(`Channel "${channelName}" does not exist.`);
     }
-    console.log("clearing", channelName)
     await this.os.registry.write(
       `${options.root}.${namespace}.${channelName}`,
       [],

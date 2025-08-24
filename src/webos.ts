@@ -21,7 +21,6 @@ export class WebOS {
 
     this.api[api.name] = api;
     await api.populate(this);
-    console.log(`API "${api.name}" installed.`);
   }
   // Helper to typecast the API
   getAPI<T extends API>(name: string): T {

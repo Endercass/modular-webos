@@ -1,0 +1,906 @@
+import { type WebOS } from "../webos";
+import { type API } from "./api";
+import { ServiceApi } from "./service";
+import { CanvasSurface, SurfacesApi } from "./surfaces";
+
+export interface WindowData {
+  wid: number;
+  title: string;
+  x: number;
+  y: number;
+  z: number;
+  minwidth: number;
+  minheight: number;
+  height: number;
+  width: number;
+  class: string;
+  resizable: boolean;
+  namespace: string;
+  content: WindowContent;
+}
+
+export type WindowContent =
+  | {
+      type: "iframe";
+      src: string;
+    }
+  | {
+      type: "surface";
+      sid: string;
+    };
+
+// To follow unienv WM spec in the future, for now based off of https://github.com/MercuryWorkshop/anuraOS/blob/main/src/AliceWM.tsx
+export interface Compositor<T> extends API {
+  start(): Promise<void>;
+
+  displays(): Promise<string[]>;
+  join(root: T, namespace: string): Promise<void>;
+  displayInfo(
+    namespace: string,
+  ): Promise<{ width: number; height: number } | null>;
+
+  create(info: Partial<WindowData>): Promise<WindowData>;
+  info(wid: number): Promise<WindowData | null>;
+  destroy(wid: number): Promise<void>;
+
+  windows(): Promise<number[]>;
+
+  setTitle(wid: number, title: string): Promise<void>;
+  title(wid: number): Promise<string>;
+
+  setContent(wid: number, content: WindowContent): Promise<void>;
+  content(wid: number): Promise<WindowContent>;
+
+  setLimits(wid: number, maxwidth: number, maxheight: number): Promise<void>;
+  limits(wid: number): Promise<{ maxwidth: number; maxheight: number }>;
+
+  setResizable(wid: number, resizable: boolean): Promise<void>;
+  resizable(wid: number): Promise<boolean>;
+
+  namespace(wid: number): Promise<string>;
+
+  setClass(wid: number, cls: string): Promise<void>;
+  class(wid: number): Promise<string>;
+
+  resize(wid: number, width: number, height: number): Promise<void>;
+  move(wid: number, x: number, y: number): Promise<void>;
+  rect(wid: number): Promise<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }>;
+
+  focus(wid: number): Promise<void>;
+}
+
+export class ReferenceCompositor implements Compositor<HTMLElement> {
+  name = "me.endercass.compositor";
+  os: WebOS;
+
+  async populate(os: WebOS) {
+    this.os = os;
+  }
+
+  async start(): Promise<void> {
+    let windows: number[] = [];
+    try {
+      windows = (await this.os.registry.read(
+        "me.endercass.compositor.windows",
+      )) as number[];
+    } catch {}
+    for (const wid of windows) {
+      await this.os.registry.delete(`me.endercass.compositor.win.${wid}.wid`);
+      await this.os.registry.delete(`me.endercass.compositor.win.${wid}.title`);
+      await this.os.registry.delete(`me.endercass.compositor.win.${wid}.x`);
+      await this.os.registry.delete(`me.endercass.compositor.win.${wid}.y`);
+      await this.os.registry.delete(`me.endercass.compositor.win.${wid}.z`);
+      await this.os.registry.delete(
+        `me.endercass.compositor.win.${wid}.minwidth`,
+      );
+      await this.os.registry.delete(
+        `me.endercass.compositor.win.${wid}.minheight`,
+      );
+      await this.os.registry.delete(
+        `me.endercass.compositor.win.${wid}.height`,
+      );
+      await this.os.registry.delete(`me.endercass.compositor.win.${wid}.width`);
+      await this.os.registry.delete(`me.endercass.compositor.win.${wid}.class`);
+      await this.os.registry.delete(
+        `me.endercass.compositor.win.${wid}.resizable`,
+      );
+      await this.os.registry.delete(
+        `me.endercass.compositor.win.${wid}.content`,
+      );
+    }
+
+    const services = this.os.getAPI<ServiceApi>("me.endercass.service");
+
+    let displays: string[] = [];
+    try {
+      displays = (await this.os.registry.read(
+        "me.endercass.compositor.displays",
+      )) as string[];
+    } catch {}
+    for (const display of displays) {
+      await this.os.registry.delete(`me.endercass.compositor.${display}.width`);
+      await this.os.registry.delete(
+        `me.endercass.compositor.${display}.height`,
+      );
+      await services.clearFunctions(display, { root: this.name });
+    }
+
+    await this.os.registry.write("me.endercass.compositor.windows", []);
+    await this.os.registry.write("me.endercass.compositor.displays", []);
+  }
+
+  async displays(): Promise<string[]> {
+    try {
+      return (await this.os.registry.read(
+        "me.endercass.compositor.displays",
+      )) as string[];
+    } catch {
+      await this.os.registry.write("me.endercass.compositor.displays", []);
+      return [];
+    }
+  }
+  async join(root: HTMLElement, namespace: string): Promise<void> {
+    root.style.position = "absolute";
+    root.style.top = "0";
+    root.style.left = "0";
+    root.style.width = "100%";
+    root.style.height = "100%";
+    root.style.overflow = "hidden";
+    root.style.backgroundColor = "#000000";
+
+    addEventListener("resize", () => {
+      this.os.registry.write(
+        `me.endercass.compositor.${namespace}.width`,
+        window.innerWidth,
+      );
+      this.os.registry.write(
+        `me.endercass.compositor.${namespace}.height`,
+        window.innerHeight,
+      );
+    });
+
+    // Initial write
+    window.dispatchEvent(new Event("resize"));
+
+    const services = this.os.getAPI<ServiceApi>("me.endercass.service");
+    await services.defineFunction(
+      "create",
+      this.#create.bind(this, root) as any,
+      namespace,
+      { root: this.name },
+    );
+
+    const displays = (await this.os.registry.read(
+      "me.endercass.compositor.displays",
+    )) as string[];
+
+    displays.push(namespace);
+    await this.os.registry.write(
+      "me.endercass.compositor.displays",
+      displays.filter((v, i, a) => a.indexOf(v) === i),
+    );
+  }
+  async displayInfo(
+    namespace: string,
+  ): Promise<{ width: number; height: number } | null> {
+    try {
+      const width = (await this.os.registry.read(
+        `me.endercass.compositor.${namespace}.width`,
+      )) as number;
+      const height = (await this.os.registry.read(
+        `me.endercass.compositor.${namespace}.height`,
+      )) as number;
+      return { width, height };
+    } catch {
+      return null;
+    }
+  }
+
+  async #create(
+    root: HTMLElement,
+    _info: Partial<WindowData>,
+  ): Promise<WindowData> {
+    const info = {
+      wid: _info.wid ?? Math.floor(Math.random() * 0xffffffff),
+      title: _info.title ?? "Untitled",
+      x: _info.x ?? window.innerWidth / 2 - (_info.width ?? 300) / 2,
+      y: _info.y ?? window.innerHeight / 2 - (_info.height ?? 200) / 2,
+      z: _info.z ?? 0,
+      minwidth: _info.minwidth ?? 100,
+      minheight: _info.minheight ?? 100,
+      height: _info.height ?? 200,
+      width: _info.width ?? 300,
+      class: _info.class ?? "default",
+      resizable: _info.resizable !== undefined ? _info.resizable : true,
+      content: _info.content ?? { type: "iframe", src: "about:blank" },
+    } as WindowData;
+
+    await this.os.registry.write(
+      `me.endercass.compositor.win.${info.wid}.wid`,
+      info.wid,
+    );
+    await this.os.registry.write(
+      `me.endercass.compositor.win.${info.wid}.title`,
+      info.title,
+    );
+    await this.os.registry.write(
+      `me.endercass.compositor.win.${info.wid}.x`,
+      info.x,
+    );
+    await this.os.registry.write(
+      `me.endercass.compositor.win.${info.wid}.y`,
+      info.y,
+    );
+    await this.os.registry.write(
+      `me.endercass.compositor.win.${info.wid}.z`,
+      info.z,
+    );
+    await this.os.registry.write(
+      `me.endercass.compositor.win.${info.wid}.minwidth`,
+      info.minwidth,
+    );
+    await this.os.registry.write(
+      `me.endercass.compositor.win.${info.wid}.minheight`,
+      info.minheight,
+    );
+    await this.os.registry.write(
+      `me.endercass.compositor.win.${info.wid}.height`,
+      info.height,
+    );
+    await this.os.registry.write(
+      `me.endercass.compositor.win.${info.wid}.width`,
+      info.width,
+    );
+    await this.os.registry.write(
+      `me.endercass.compositor.win.${info.wid}.class`,
+      info.class,
+    );
+    await this.os.registry.write(
+      `me.endercass.compositor.win.${info.wid}.resizable`,
+      info.resizable,
+    );
+    await this.os.registry.write(
+      `me.endercass.compositor.win.${info.wid}.content`,
+      info.content,
+    );
+
+    let wins: number[] = [];
+    try {
+      wins = (await this.os.registry.read(
+        "me.endercass.compositor.windows",
+      )) as number[];
+    } catch {}
+
+    wins.push(info.wid);
+    await this.os.registry.write("me.endercass.compositor.windows", wins);
+
+    const win = document.createElement("div");
+    win.style.position = "absolute";
+    win.style.border = "4px solid #b0eced";
+    win.style.backgroundColor = "#222222";
+    win.style.boxSizing = "border-box";
+    win.style.color = "#ffffff";
+
+    this.os.registry.watch(
+      `me.endercass.compositor.win.${info.wid}.x`,
+      (value) => {
+        if (typeof value !== "number") return;
+        info.x = value;
+        win.style.left = value + "px";
+      },
+    );
+    this.os.registry.watch(
+      `me.endercass.compositor.win.${info.wid}.y`,
+      (value) => {
+        if (typeof value !== "number") return;
+        info.y = value;
+        win.style.top = value + "px";
+      },
+    );
+    this.os.registry.watch(
+      `me.endercass.compositor.win.${info.wid}.width`,
+      (value) => {
+        if (typeof value !== "number") return;
+        info.width = value;
+        win.style.width = value + "px";
+      },
+    );
+    this.os.registry.watch(
+      `me.endercass.compositor.win.${info.wid}.height`,
+      (value) => {
+        if (typeof value !== "number") return;
+        info.height = value;
+        win.style.height = value + "px";
+      },
+    );
+    this.os.registry.watch(
+      `me.endercass.compositor.win.${info.wid}.z`,
+      (value) => {
+        if (typeof value !== "number") return;
+        info.z = value;
+        win.style.zIndex = value?.toString() || "0";
+      },
+    );
+
+    this.os.registry.watch(
+      `me.endercass.compositor.win.${info.wid}.resizable`,
+      (value) => {
+        if (typeof value !== "boolean") return;
+        info.resizable = value;
+      },
+    );
+
+    this.os.registry.watch(
+      `me.endercass.compositor.win.${info.wid}.class`,
+      (value) => {
+        if (typeof value !== "string") return;
+        info.class = value;
+      },
+    );
+
+    this.os.registry.watch(
+      `me.endercass.compositor.win.${info.wid}.minwidth`,
+      (value) => {
+        if (typeof value !== "number") return;
+        info.minwidth = value;
+      },
+    );
+    this.os.registry.watch(
+      `me.endercass.compositor.win.${info.wid}.minheight`,
+      (value) => {
+        if (typeof value !== "number") return;
+        info.minheight = value;
+      },
+    );
+
+    const leftResizer = document.createElement("div");
+    leftResizer.style.position = "absolute";
+    leftResizer.style.left = "-4px";
+    leftResizer.style.top = "0";
+    leftResizer.style.width = "4px";
+    leftResizer.style.height = "100%";
+    leftResizer.style.cursor = "ew-resize";
+    win.appendChild(leftResizer);
+
+    const rightResizer = document.createElement("div");
+    rightResizer.style.position = "absolute";
+    rightResizer.style.right = "-4px";
+    rightResizer.style.top = "0";
+    rightResizer.style.width = "4px";
+    rightResizer.style.height = "100%";
+    rightResizer.style.cursor = "ew-resize";
+    win.appendChild(rightResizer);
+
+    const upResizer = document.createElement("div");
+    upResizer.style.position = "absolute";
+    upResizer.style.left = "0";
+    upResizer.style.top = "-4px";
+    upResizer.style.width = "100%";
+    upResizer.style.height = "4px";
+    upResizer.style.cursor = "ns-resize";
+    win.appendChild(upResizer);
+
+    const downResizer = document.createElement("div");
+    downResizer.style.position = "absolute";
+    downResizer.style.left = "0";
+    downResizer.style.bottom = "-4px";
+    downResizer.style.width = "100%";
+    downResizer.style.height = "4px";
+    downResizer.style.cursor = "ns-resize";
+    win.appendChild(downResizer);
+
+    let isResizing = false;
+    let resizeDir: "left" | "right" | "up" | "down" | null = null;
+
+    leftResizer.addEventListener("pointerdown", (e) => {
+      if (!info.resizable) return;
+      isResizing = true;
+      resizeDir = "left";
+      document.querySelectorAll("iframe").forEach((f) => {
+        f.style.pointerEvents = "none";
+      });
+      this.focus(info.wid);
+      e.preventDefault();
+    });
+
+    rightResizer.addEventListener("pointerdown", (e) => {
+      if (!info.resizable) return;
+      isResizing = true;
+      resizeDir = "right";
+      document.querySelectorAll("iframe").forEach((f) => {
+        f.style.pointerEvents = "none";
+      });
+      this.focus(info.wid);
+      e.preventDefault();
+    });
+
+    upResizer.addEventListener("pointerdown", (e) => {
+      if (!info.resizable) return;
+      isResizing = true;
+      resizeDir = "up";
+      document.querySelectorAll("iframe").forEach((f) => {
+        f.style.pointerEvents = "none";
+      });
+      this.focus(info.wid);
+      e.preventDefault();
+    });
+
+    downResizer.addEventListener("pointerdown", (e) => {
+      if (!info.resizable) return;
+      isResizing = true;
+      resizeDir = "down";
+      document.querySelectorAll("iframe").forEach((f) => {
+        f.style.pointerEvents = "none";
+      });
+      this.focus(info.wid);
+      e.preventDefault();
+    });
+
+    const titleBar = document.createElement("div");
+    titleBar.style.backgroundColor = "#1a1a1a";
+    titleBar.style.cursor = "move";
+
+    let isDragging = false;
+
+    titleBar.addEventListener("pointerdown", (e) => {
+      isDragging = true;
+      document.querySelectorAll("iframe").forEach((f) => {
+        f.style.pointerEvents = "none";
+      });
+      this.focus(info.wid);
+      e.preventDefault();
+    });
+
+    let pointerover = false;
+
+    win.addEventListener("pointerover", () => {
+      pointerover = true;
+    });
+    win.addEventListener("pointerleave", () => {
+      pointerover = false;
+    });
+
+    addEventListener("blur", () => {
+      if (pointerover) {
+        win.focus();
+      }
+    });
+
+    document.addEventListener("pointerup", () => {
+      isDragging = false;
+      isResizing = false;
+      resizeDir = null;
+
+      document.querySelectorAll("iframe").forEach((f) => {
+        f.style.pointerEvents = "auto";
+      });
+
+      this.resize(info.wid, info.width, info.height);
+      this.move(info.wid, info.x, info.y);
+    });
+
+    document.addEventListener("pointermove", (e) => {
+      if (isResizing) {
+        switch (resizeDir) {
+          case "left": {
+            const newWidth = info.width + (info.x - e.clientX);
+            if (newWidth >= info.minwidth) {
+              info.width = newWidth;
+              info.x = e.clientX;
+              if (info.x < 0) {
+                info.width = info.width + info.x;
+                info.x = 0;
+              }
+              win.style.width = info.width + "px";
+              win.style.left = info.x + "px";
+            }
+            break;
+          }
+          case "right": {
+            const newWidth = e.clientX - info.x;
+            if (newWidth >= info.minwidth) {
+              info.width = newWidth;
+              if (info.x + info.width > window.innerWidth) {
+                info.width = window.innerWidth - info.x;
+              }
+              win.style.width = info.width + "px";
+            }
+            break;
+          }
+          case "up": {
+            const newHeight = info.height + (info.y - e.clientY);
+            if (newHeight >= info.minheight) {
+              info.height = newHeight;
+              info.y = e.clientY;
+              if (info.y < 0) {
+                info.height = info.height + info.y;
+                info.y = 0;
+              }
+              win.style.height = info.height + "px";
+              win.style.top = info.y + "px";
+            }
+            break;
+          }
+          case "down": {
+            const newHeight = e.clientY - info.y;
+            if (newHeight >= info.minheight) {
+              info.height = newHeight;
+              if (info.y + info.height > window.innerHeight)
+                info.height = window.innerHeight - info.y;
+              win.style.height = info.height + "px";
+            }
+            break;
+          }
+        }
+      }
+
+      if (isDragging) {
+        info.x = e.clientX - titleBar.offsetWidth / 2;
+        info.y = e.clientY - titleBar.offsetHeight / 2;
+        if (info.x < 0) info.x = 0;
+        if (info.y < 0) info.y = 0;
+        if (info.x + info.width > window.innerWidth)
+          info.x = window.innerWidth - info.width;
+        if (info.y + info.height > window.innerHeight)
+          info.y = window.innerHeight - info.height;
+        win.style.left = info.x + "px";
+        win.style.top = info.y + "px";
+      }
+    });
+
+    const title = document.createElement("span");
+    title.style.padding = "4px";
+    title.textContent = info.title;
+
+    this.os.registry.watch(
+      `me.endercass.compositor.win.${info.wid}.title`,
+      (value) => {
+        if (typeof value !== "string") return;
+        info.title = value;
+        title.textContent = value;
+      },
+    );
+
+    titleBar.appendChild(title);
+    win.appendChild(titleBar);
+
+    const contentBox = document.createElement("div");
+    contentBox.style.width = "100%";
+    contentBox.style.height = `calc(100% - ${titleBar.offsetHeight}px)`;
+    win.appendChild(contentBox);
+
+    this.os.registry.watch(
+      `me.endercass.compositor.win.${info.wid}.content`,
+      async (value) => {
+        if (typeof value !== "object" || value === null || !("type" in value))
+          return;
+        info.content = value as WindowContent;
+        while (contentBox.children.length > 1) {
+          contentBox.removeChild(win.lastChild!);
+        }
+        if (info.content.type === "iframe") {
+          const iframe = document.createElement("iframe");
+          iframe.src = info.content.src;
+          iframe.sandbox = "allow-scripts";
+          iframe.style.width = "100%";
+          iframe.style.height = `calc(100% - ${titleBar.offsetHeight}px)`;
+          iframe.style.border = "none";
+          contentBox.appendChild(iframe);
+        } else if (info.content.type === "surface") {
+          const canvas = document.createElement("canvas");
+          canvas.width = info.width;
+          canvas.height = info.height - titleBar.offsetHeight;
+          canvas.style.width = "100%";
+          canvas.style.height = "100%";
+          const surfaces = this.os.getAPI<SurfacesApi>("me.endercass.surface");
+          surfaces.register(info.content.sid, new CanvasSurface(canvas));
+          contentBox.appendChild(canvas);
+        }
+      },
+    );
+
+    root.appendChild(win);
+
+    this.os.registry.watch(`me.endercass.compositor.windows`, (value) => {
+      if (!Array.isArray(value)) return;
+      if (!value.includes(info.wid)) {
+        root.removeChild(win);
+        this.os.registry.delete(`me.endercass.compositor.win.${info.wid}.wid`);
+        this.os.registry.delete(
+          `me.endercass.compositor.win.${info.wid}.title`,
+        );
+        this.os.registry.delete(`me.endercass.compositor.win.${info.wid}.x`);
+        this.os.registry.delete(`me.endercass.compositor.win.${info.wid}.y`);
+        this.os.registry.delete(`me.endercass.compositor.win.${info.wid}.z`);
+        this.os.registry.delete(
+          `me.endercass.compositor.win.${info.wid}.minwidth`,
+        );
+        this.os.registry.delete(
+          `me.endercass.compositor.win.${info.wid}.minheight`,
+        );
+        this.os.registry.delete(
+          `me.endercass.compositor.win.${info.wid}.height`,
+        );
+        this.os.registry.delete(
+          `me.endercass.compositor.win.${info.wid}.width`,
+        );
+        this.os.registry.delete(
+          `me.endercass.compositor.win.${info.wid}.class`,
+        );
+        this.os.registry.delete(
+          `me.endercass.compositor.win.${info.wid}.resizable`,
+        );
+        this.os.registry.delete(
+          `me.endercass.compositor.win.${info.wid}.content`,
+        );
+      }
+    });
+
+    this.focus(info.wid);
+
+    return info;
+  }
+  async create(info: Partial<WindowData>): Promise<WindowData> {
+    const services = this.os.getAPI<ServiceApi>("me.endercass.service");
+
+    const displays = (await this.os.registry.read(
+      "me.endercass.compositor.displays",
+    )) as string[];
+
+    if (displays.length === 0) {
+      throw new Error("No displays available");
+    }
+
+    if (!info.namespace) {
+      info.namespace = displays[0];
+    }
+
+    if (!displays.includes(info.namespace)) {
+      throw new Error("Namespace not joined as a display");
+    }
+
+    return (await services.callFunction(
+      "create",
+      [info as any],
+      info.namespace,
+      {
+        root: this.name,
+      },
+    )) as any;
+  }
+  async info(wid: number): Promise<WindowData | null> {
+    try {
+      const info = {
+        wid: (await this.os.registry.read(
+          `me.endercass.compositor.win.${wid}.wid`,
+        )) as number,
+        title: (await this.os.registry.read(
+          `me.endercass.compositor.win.${wid}.title`,
+        )) as string,
+        x: (await this.os.registry.read(
+          `me.endercass.compositor.win.${wid}.x`,
+        )) as number,
+        y: (await this.os.registry.read(
+          `me.endercass.compositor.win.${wid}.y`,
+        )) as number,
+        z: (await this.os.registry.read(
+          `me.endercass.compositor.win.${wid}.z`,
+        )) as number,
+        minwidth: (await this.os.registry.read(
+          `me.endercass.compositor.win.${wid}.minwidth`,
+        )) as number,
+        minheight: (await this.os.registry.read(
+          `me.endercass.compositor.win.${wid}.minheight`,
+        )) as number,
+        height: (await this.os.registry.read(
+          `me.endercass.compositor.win.${wid}.height`,
+        )) as number,
+        width: (await this.os.registry.read(
+          `me.endercass.compositor.win.${wid}.width`,
+        )) as number,
+        class: (await this.os.registry.read(
+          `me.endercass.compositor.win.${wid}.class`,
+        )) as string,
+        resizable: (await this.os.registry.read(
+          `me.endercass.compositor.win.${wid}.resizable`,
+        )) as boolean,
+        content: (await this.os.registry.read(
+          `me.endercass.compositor.win.${wid}.content`,
+        )) as WindowContent,
+      } as WindowData;
+      return info;
+    } catch {
+      return null;
+    }
+  }
+  async destroy(wid: number): Promise<void> {
+    let wins: number[] = [];
+    try {
+      wins = (await this.os.registry.read(
+        "me.endercass.compositor.windows",
+      )) as number[];
+    } catch {}
+
+    wins = wins.filter((w) => w !== wid);
+    await this.os.registry.write("me.endercass.compositor.windows", wins);
+  }
+
+  async windows(): Promise<number[]> {
+    try {
+      return (await this.os.registry.read(
+        "me.endercass.compositor.windows",
+      )) as number[];
+    } catch {
+      await this.os.registry.write("me.endercass.compositor.windows", []);
+      return [];
+    }
+  }
+
+  async setTitle(wid: number, title: string): Promise<void> {
+    const info = await this.info(wid);
+    if (!info) throw new Error("Window not found");
+
+    await this.os.registry.write(
+      `me.endercass.compositor.win.${wid}.title`,
+      title,
+    );
+  }
+  async title(wid: number): Promise<string> {
+    const info = await this.info(wid);
+    if (!info) throw new Error("Window not found");
+    return info.title;
+  }
+
+  async setContent(wid: number, content: WindowContent): Promise<void> {
+    const info = await this.info(wid);
+    if (!info) throw new Error("Window not found");
+
+    await this.os.registry.write(
+      `me.endercass.compositor.win.${wid}.content`,
+      content,
+    );
+  }
+  async content(wid: number): Promise<WindowContent> {
+    const info = await this.info(wid);
+    if (!info) throw new Error("Window not found");
+    return info.content;
+  }
+
+  async setLimits(
+    wid: number,
+    maxwidth: number,
+    maxheight: number,
+  ): Promise<void> {
+    const info = await this.info(wid);
+    if (!info) throw new Error("Window not found");
+
+    await this.os.registry.write(
+      `me.endercass.compositor.win.${wid}.maxwidth`,
+      maxwidth,
+    );
+    await this.os.registry.write(
+      `me.endercass.compositor.win.${wid}.maxheight`,
+      maxheight,
+    );
+  }
+  async limits(wid: number): Promise<{ maxwidth: number; maxheight: number }> {
+    const info = await this.info(wid);
+    if (!info) throw new Error("Window not found");
+    let maxwidth = 1920;
+    let maxheight = 1080;
+    try {
+      maxwidth = (await this.os.registry.read(
+        `me.endercass.compositor.win.${wid}.maxwidth`,
+      )) as number;
+    } catch {}
+    try {
+      maxheight = (await this.os.registry.read(
+        `me.endercass.compositor.win.${wid}.maxheight`,
+      )) as number;
+    } catch {}
+    return { maxwidth, maxheight };
+  }
+
+  async setResizable(wid: number, resizable: boolean): Promise<void> {
+    const info = await this.info(wid);
+    if (!info) throw new Error("Window not found");
+
+    await this.os.registry.write(
+      `me.endercass.compositor.win.${wid}.resizable`,
+      resizable,
+    );
+  }
+  async resizable(wid: number): Promise<boolean> {
+    const info = await this.info(wid);
+    if (!info) throw new Error("Window not found");
+    return info.resizable;
+  }
+
+  async namespace(wid: number): Promise<string> {
+    const info = await this.info(wid);
+    if (!info) throw new Error("Window not found");
+    return info.namespace;
+  }
+
+  async setClass(wid: number, cls: string): Promise<void> {
+    const info = await this.info(wid);
+    if (!info) throw new Error("Window not found");
+
+    await this.os.registry.write(
+      `me.endercass.compositor.win.${wid}.class`,
+      cls,
+    );
+  }
+  async class(wid: number): Promise<string> {
+    const info = await this.info(wid);
+    if (!info) throw new Error("Window not found");
+    return info.class;
+  }
+
+  async resize(wid: number, width: number, height: number): Promise<void> {
+    const info = await this.info(wid);
+    if (!info) throw new Error("Window not found");
+
+    if (width < info.minwidth) width = info.minwidth;
+    if (height < info.minheight) height = info.minheight;
+
+    await this.os.registry.write(
+      `me.endercass.compositor.win.${wid}.width`,
+      width,
+    );
+    await this.os.registry.write(
+      `me.endercass.compositor.win.${wid}.height`,
+      height,
+    );
+  }
+  async move(wid: number, x: number, y: number): Promise<void> {
+    const info = await this.info(wid);
+    if (!info) throw new Error("Window not found");
+
+    if (x < 0) x = 0;
+    if (y < 0) y = 0;
+
+    await this.os.registry.write(`me.endercass.compositor.win.${wid}.x`, x);
+    await this.os.registry.write(`me.endercass.compositor.win.${wid}.y`, y);
+  }
+  async rect(wid: number): Promise<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }> {
+    const info = await this.info(wid);
+    if (!info) throw new Error("Window not found");
+    return {
+      x: info.x,
+      y: info.y,
+      width: info.width,
+      height: info.height,
+    };
+  }
+
+  async focus(wid: number): Promise<void> {
+    const info = await this.info(wid);
+    if (!info) throw new Error("Window not found");
+
+    let maxZ = 0;
+    const wins: number[] = (await this.os.registry.read(
+      "me.endercass.compositor.windows",
+    )) as number[];
+    for (const w of wins) {
+      const winInfo = await this.info(w);
+      if (winInfo && winInfo.z > maxZ) {
+        maxZ = winInfo.z;
+      }
+    }
+    await this.os.registry.write(
+      `me.endercass.compositor.win.${wid}.z`,
+      maxZ + 1,
+    );
+  }
+}

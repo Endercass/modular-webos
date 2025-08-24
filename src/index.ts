@@ -12,4 +12,6 @@ export * from "./apis/service.ts";
 export * from "./apis/identity.ts";
 export * from "./apis/processes.ts";
 export * from "./apis/fs.ts";
+export * from "./apis/surfaces.ts";
+export * from "./apis/compositor.ts";
 export * as util from "./util.ts";
