@@ -99,6 +99,9 @@
 
       const display = crypto.randomUUID().split("-")[0];
 
+      const processes = await os.api["me.endercass.processes"];
+      await processes.join(display);
+
       const params = new URLSearchParams(window.location.search);
 
       window.$if = iframes;

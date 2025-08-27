@@ -23,6 +23,13 @@ export async function boot(): Promise<OS.WebOS> {
   );
   await fs.mount("/", "rootfs");
   await fs.makeDir("/");
+  await fs.makeDir("/bin");
+  await fs.makeDir("/etc");
+
+  await fs.writeFile(
+    "/bin/vista.js",
+    await fetch("/vista.js").then((r) => r.blob()),
+  );
 
   await os.registry.write("me.endercass.con.current", "1");
   await os.registry.write(
@@ -30,6 +37,7 @@ export async function boot(): Promise<OS.WebOS> {
     [...Array(9).keys()].map((i) => (i + 1).toString()),
   );
 
+  await os.getAPI<OS.ProcessesApi>("me.endercass.processes").start();
   await os.getAPI<OS.ReferenceCompositor>("me.endercass.compositor").start();
 
   return os;

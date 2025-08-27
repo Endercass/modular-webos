@@ -1,55 +1,65 @@
 <!DOCTYPE html>
 <html>
-
-<head>
+  <head>
     <meta charset="UTF-8" />
     <title>HTML Sandbox Stub</title>
-</head>
+  </head>
 
-<body>
+  <body>
     <script type="module">
-        import * as OS from "./dist/index.js";
-        import * as Distro from "./dist/distro.js";
+      import * as OS from "./dist/index.js";
+      import * as Distro from "./dist/distro.js";
+      const params = new URLSearchParams(location.search);
+      const pid = +params.get("pid");
 
-        const params = new URLSearchParams(location.search);
-        const pid = +params.get("pid"); 
+      const q = OS.createListenerQueue();
 
-        const q = OS.createListenerQueue();
+      const channel = {
+        send(msg) {
+          window.top.postMessage({ msg, pid }, "*");
+        },
+        subscribe(
+          cb,
+          name = "anon." + Math.random().toString(36).substring(2, 8),
+        ) {
+          q.on(cb, name);
+        },
+        unsubscribe(name) {
+          q.off(name);
+        },
+      };
 
-        const channel = {
-            send(msg) {
-                window.parent.postMessage({ msg, pid }, "*");
-            },
-            subscribe(cb, name = "anon." + Math.random().toString(36).substring(2, 8)) {
-                q.on(cb, name);
-            },
-            unsubscribe(name) {
-                q.off(name);
-            }
-        };
-
-        window.addEventListener("message", (evt) => {
-            if (evt.data && evt.data.pid === pid && evt.data.msg) {
-                q.push(evt.data.msg);
-            }
-        });
-
-        try {
-            window.os = await Distro.connect(channel);
-            window.env = { PID: pid };
-            window.exit = (code) => {
-                window.parent.postMessage({ code, pid }, "*");
-            };
-
-            const args = await os.api["me.endercass.processes"].getArgs();
-            const data = await os.api["me.endercass.fs"].readFile(args[0]);
-
-            await import(URL.createObjectURL(data.slice(0, data.size, "application/javascript")))
-        } catch (err) {
-            console.error("Sandbox initialization failed:", err);
-            window.parent.postMessage({ error: err.message, pid }, "*");
+      window.addEventListener("message", (evt) => {
+        if (evt.data && evt.data.pid === pid && evt.data.msg) {
+          q.push(evt.data.msg);
         }
-    </script>
-</body>
+      });
 
+      try {
+        window.os = await Distro.connect(channel);
+        window.env = { PID: pid };
+        window.exit = (code) => {
+          window.parent.postMessage({ code, pid }, "*");
+        };
+        window.print = console.log.bind(console);
+        window.println = console.log.bind(console);
+        window.eprint = console.error.bind(console);
+        window.eprintln = console.error.bind(console);
+
+        const args = await os.api["me.endercass.processes"].getArgs();
+        const data = await os.api["me.endercass.fs"].readFile(args[0]);
+
+        const { main } = await import(
+          URL.createObjectURL(
+            data.slice(0, data.size, "application/javascript"),
+          )
+        );
+
+        await main?.(args);
+      } catch (err) {
+        console.error("Sandbox initialization failed:", err);
+        window.parent.postMessage({ error: err.message, pid }, "*");
+      }
+    </script>
+  </body>
 </html>
