@@ -9,14 +9,12 @@ async function setup(os: OS.WebOS): Promise<OS.WebOS> {
   await os.installAPI(new OS.FsApi());
   await os.installAPI(new OS.SurfacesApi());
   await os.installAPI(new OS.ReferenceCompositor());
+  await os.installAPI(new OS.NetApi());
 
   return os;
 }
 
-export async function boot(): Promise<OS.WebOS> {
-  const os = await setup(new OS.WebOS(new OS.IDBRegistry()));
-  await os.getAPI<OS.ServiceApi>("me.endercass.service").clearFunctions();
-  const fs = os.getAPI<OS.FsApi>("me.endercass.fs");
+async function buildFS(fs: OS.FsApi) {
   await fs.register(
     "rootfs",
     new OS.LocalFS(await navigator.storage.getDirectory()),
@@ -25,11 +23,21 @@ export async function boot(): Promise<OS.WebOS> {
   await fs.makeDir("/");
   await fs.makeDir("/bin");
   await fs.makeDir("/etc");
+}
 
-  await fs.writeFile(
-    "/bin/vista.js",
-    await fetch("/vista.js").then((r) => r.blob()),
-  );
+async function buildNetwork(net: OS.NetApi) {
+  await net.register("loopback", new OS.LoopbackBus());
+  await net.route("127.0.0.1/8", "loopback");
+}
+
+export async function boot(): Promise<OS.WebOS> {
+  const os = await setup(new OS.WebOS(new OS.IDBRegistry()));
+  await os.getAPI<OS.ServiceApi>("me.endercass.service").clearFunctions();
+  const fs = os.getAPI<OS.FsApi>("me.endercass.fs");
+  const net = os.getAPI<OS.NetApi>("me.endercass.net");
+
+  await buildFS(fs);
+  await buildNetwork(net);
 
   await os.registry.write("me.endercass.con.current", "1");
   await os.registry.write(
