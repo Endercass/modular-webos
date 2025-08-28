@@ -85,7 +85,7 @@ export class FsApi implements API, FsImpl {
     let tab: Record<string, string> = {};
     try {
       tab = await this.os.registry.read(this.name + ".fstab");
-    } catch {}
+    } catch { }
 
     tab[path] = namespace;
 
@@ -224,10 +224,43 @@ export class FsApi implements API, FsImpl {
       root: this.name + ".impl",
     }) as any;
   }
+
+  async resolve(path: string, cwd?: string): Promise<string | null> {
+    try {
+      await this.stat(path);
+      return path;
+    } catch { }
+
+    if (!cwd) {
+      const processes = this.os.getAPI<ProcessesApi>("me.endercass.processes");
+      // Try to get CWD. This will only work if called inside a process (global env.PID is set)
+      cwd = await processes.getCwd();
+    }
+
+    if (path.startsWith("/")) {
+      try {
+        await this.stat(path);
+        return path;
+      } catch {
+        return null;
+      }
+    }
+
+    if (path.startsWith("./")) path = path.slice(2);
+
+    const absPath = cwd.replace(/\/+$/g, "") + "/" + path;
+
+    try {
+      await this.stat(absPath);
+      return absPath;
+    } catch {
+      return null;
+    }
+  }
 }
 
 export class LocalFS implements FsImpl {
-  constructor(public dirHandle: FileSystemDirectoryHandle) {}
+  constructor(public dirHandle: FileSystemDirectoryHandle) { }
 
   os: WebOS;
   namespace: string;
@@ -297,8 +330,8 @@ export class LocalFS implements FsImpl {
     stats.atime = now;
     await this.os.registry.write(
       this.namespace +
-        ".stats." +
-        path.replace(/\/+$/, "").replaceAll("/", "."),
+      ".stats." +
+      path.replace(/\/+$/, "").replaceAll("/", "."),
       stats as any,
     );
   }
@@ -309,10 +342,10 @@ export class LocalFS implements FsImpl {
     try {
       await this.os.registry.delete(
         this.namespace +
-          ".stats." +
-          path.replace(/\/+$/, "").replaceAll("/", "."),
+        ".stats." +
+        path.replace(/\/+$/, "").replaceAll("/", "."),
       );
-    } catch {}
+    } catch { }
   }
 
   async readDir(path: string): Promise<string[]> {
@@ -352,8 +385,8 @@ export class LocalFS implements FsImpl {
       stats.atime = now;
       await this.os.registry.write(
         this.namespace +
-          ".stats." +
-          path.replace(/\/+$/, "").replaceAll("/", "."),
+        ".stats." +
+        path.replace(/\/+$/, "").replaceAll("/", "."),
         stats as any,
       );
     }
@@ -365,10 +398,10 @@ export class LocalFS implements FsImpl {
     try {
       await this.os.registry.delete(
         this.namespace +
-          ".stats." +
-          path.replace(/\/+$/, "").replaceAll("/", "."),
+        ".stats." +
+        path.replace(/\/+$/, "").replaceAll("/", "."),
       );
-    } catch {}
+    } catch { }
   }
 
   async symlink(target: string, path: string): Promise<void> {
@@ -389,16 +422,16 @@ export class LocalFS implements FsImpl {
       const stats = await this.stat(oldPath);
       await this.os.registry.write(
         this.namespace +
-          ".stats." +
-          newPath.replace(/\/+$/, "").replaceAll("/", "."),
+        ".stats." +
+        newPath.replace(/\/+$/, "").replaceAll("/", "."),
         stats as any,
       );
       await this.os.registry.delete(
         this.namespace +
-          ".stats." +
-          oldPath.replace(/\/+$/, "").replaceAll("/", "."),
+        ".stats." +
+        oldPath.replace(/\/+$/, "").replaceAll("/", "."),
       );
-    } catch {}
+    } catch { }
   }
   async chown(path: string, uid: number, gid = uid): Promise<void> {
     let stats: FsStats;
@@ -411,8 +444,8 @@ export class LocalFS implements FsImpl {
     stats.gid = gid;
     await this.os.registry.write(
       this.namespace +
-        ".stats." +
-        path.replace(/\/+$/, "").replaceAll("/", "."),
+      ".stats." +
+      path.replace(/\/+$/, "").replaceAll("/", "."),
       stats as any,
     );
   }
@@ -426,8 +459,8 @@ export class LocalFS implements FsImpl {
     stats.mode = mode;
     await this.os.registry.write(
       this.namespace +
-        ".stats." +
-        path.replace(/\/+$/, "").replaceAll("/", "."),
+      ".stats." +
+      path.replace(/\/+$/, "").replaceAll("/", "."),
       stats as any,
     );
   }
@@ -436,8 +469,8 @@ export class LocalFS implements FsImpl {
     try {
       stats = await this.os.registry.read(
         this.namespace +
-          ".stats." +
-          path.replace(/\/+$/, "").replaceAll("/", "."),
+        ".stats." +
+        path.replace(/\/+$/, "").replaceAll("/", "."),
       );
     } catch {
       throw new Error("No entry exists at path: " + path);

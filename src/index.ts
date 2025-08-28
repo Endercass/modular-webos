@@ -15,4 +15,5 @@ export * from "./apis/fs.ts";
 export * from "./apis/surfaces.ts";
 export * from "./apis/compositor.ts";
 export * from "./apis/net.ts";
+export * from "./apis/resolve.ts";
 export * as util from "./util.ts";

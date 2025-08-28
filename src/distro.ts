@@ -10,6 +10,7 @@ async function setup(os: OS.WebOS): Promise<OS.WebOS> {
   await os.installAPI(new OS.SurfacesApi());
   await os.installAPI(new OS.ReferenceCompositor());
   await os.installAPI(new OS.NetApi());
+  await os.installAPI(new OS.ResolveApi());
 
   return os;
 }
@@ -38,6 +39,9 @@ export async function boot(): Promise<OS.WebOS> {
 
   await buildFS(fs);
   await buildNetwork(net);
+
+  const resolver = os.getAPI<OS.ResolveApi>("me.endercass.resolve");
+  await resolver.register("fs", new OS.FsResolver(os));
 
   await os.registry.write("me.endercass.con.current", "1");
   await os.registry.write(
