@@ -15,6 +15,7 @@ export interface WindowData {
   width: number;
   class: string;
   resizable: boolean;
+  maximized: boolean;
   namespace: string;
   content: WindowContent;
 }
@@ -56,6 +57,9 @@ export interface Compositor<T> extends API {
 
   setResizable(wid: number, resizable: boolean): Promise<void>;
   resizable(wid: number): Promise<boolean>;
+
+  setMaximized(wid: number, maximized: boolean): Promise<void>;
+  maximized(wid: number): Promise<boolean>;
 
   namespace(wid: number): Promise<string>;
 
@@ -108,6 +112,9 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
       await this.os.registry.delete(`me.endercass.compositor.win.${wid}.class`);
       await this.os.registry.delete(
         `me.endercass.compositor.win.${wid}.resizable`,
+      );
+      await this.os.registry.delete(
+        `me.endercass.compositor.win.${wid}.maximized`,
       );
       await this.os.registry.delete(
         `me.endercass.compositor.win.${wid}.content`,
@@ -217,6 +224,7 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
       width: _info.width ?? 300,
       class: _info.class ?? "default",
       resizable: _info.resizable !== undefined ? _info.resizable : true,
+      maximized: _info.maximized ?? false,
       content: _info.content ?? { type: "iframe", src: "about:blank" },
     } as WindowData;
 
@@ -265,6 +273,10 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
       info.resizable,
     );
     await this.os.registry.write(
+      `me.endercass.compositor.win.${info.wid}.maximized`,
+      info.maximized,
+    );
+    await this.os.registry.write(
       `me.endercass.compositor.win.${info.wid}.content`,
       info.content,
     );
@@ -285,6 +297,8 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
     win.style.backgroundColor = "#222222";
     win.style.boxSizing = "border-box";
     win.style.color = "#ffffff";
+    win.style.display = "flex";
+    win.style.flexDirection = "column";
 
     this.os.registry.watch(
       `me.endercass.compositor.win.${info.wid}.x`,
@@ -397,7 +411,7 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
     let isResizing = false;
     let resizeDir: "left" | "right" | "up" | "down" | null = null;
 
-    leftResizer.addEventListener("pointerdown", (e) => {
+    leftResizer.addEventListener("pointerdown", async (e) => {
       if (!info.resizable) return;
       isResizing = true;
       resizeDir = "left";
@@ -405,10 +419,13 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
         f.style.pointerEvents = "none";
       });
       this.focus(info.wid);
+      if (await this.os.registry.read(`me.endercass.compositor.win.${info.wid}.maximized`)) {
+        this.os.registry.write(`me.endercass.compositor.win.${info.wid}.maximized`, false);
+      }
       e.preventDefault();
     });
 
-    rightResizer.addEventListener("pointerdown", (e) => {
+    rightResizer.addEventListener("pointerdown", async (e) => {
       if (!info.resizable) return;
       isResizing = true;
       resizeDir = "right";
@@ -416,10 +433,13 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
         f.style.pointerEvents = "none";
       });
       this.focus(info.wid);
+      if (await this.os.registry.read(`me.endercass.compositor.win.${info.wid}.maximized`)) {
+        this.os.registry.write(`me.endercass.compositor.win.${info.wid}.maximized`, false);
+      }
       e.preventDefault();
     });
 
-    upResizer.addEventListener("pointerdown", (e) => {
+    upResizer.addEventListener("pointerdown", async (e) => {
       if (!info.resizable) return;
       isResizing = true;
       resizeDir = "up";
@@ -427,10 +447,13 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
         f.style.pointerEvents = "none";
       });
       this.focus(info.wid);
+      if (await this.os.registry.read(`me.endercass.compositor.win.${info.wid}.maximized`)) {
+        this.os.registry.write(`me.endercass.compositor.win.${info.wid}.maximized`, false);
+      }
       e.preventDefault();
     });
 
-    downResizer.addEventListener("pointerdown", (e) => {
+    downResizer.addEventListener("pointerdown", async (e) => {
       if (!info.resizable) return;
       isResizing = true;
       resizeDir = "down";
@@ -438,6 +461,9 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
         f.style.pointerEvents = "none";
       });
       this.focus(info.wid);
+      if (await this.os.registry.read(`me.endercass.compositor.win.${info.wid}.maximized`)) {
+        this.os.registry.write(`me.endercass.compositor.win.${info.wid}.maximized`, false);
+      }
       e.preventDefault();
     });
 
@@ -455,7 +481,7 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
 
     let isDragging = false;
 
-    titleBar.addEventListener("pointerdown", (e) => {
+    titleBar.addEventListener("pointerdown", async (e) => {
       if (e.target === buttonBox || buttonBox.contains(e.target as Node)) {
         return;
       }
@@ -464,6 +490,9 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
         f.style.pointerEvents = "none";
       });
       this.focus(info.wid);
+      if (await this.os.registry.read(`me.endercass.compositor.win.${info.wid}.maximized`)) {
+        this.os.registry.write(`me.endercass.compositor.win.${info.wid}.maximized`, false);
+      }
       e.preventDefault();
     });
 
@@ -580,8 +609,79 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
     );
 
     titleBar.appendChild(title);
-
     titleBar.appendChild(buttonBox);
+
+    const maximizeButton = document.createElement("button");
+    maximizeButton.textContent = "[ ]";
+    maximizeButton.style.width = "24px";
+    maximizeButton.style.height = "24px";
+    maximizeButton.style.margin = "4px";
+    maximizeButton.style.padding = "0";
+    maximizeButton.style.display = "flex";
+    maximizeButton.style.alignItems = "center";
+    maximizeButton.style.justifyContent = "center";
+    maximizeButton.style.cursor = "pointer";
+
+    let lastSize: { x: number; y: number; width: number; height: number } = { x: info.x, y: info.y, width: info.width, height: info.height };
+
+    maximizeButton.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      info.maximized = !info.maximized;
+      await this.os.registry.write(
+        `me.endercass.compositor.win.${info.wid}.maximized`,
+        info.maximized,
+      );
+    });
+    buttonBox.appendChild(maximizeButton);
+
+    this.os.registry.watch(
+      `me.endercass.compositor.win.${info.wid}.maximized`,
+      (value) => {
+        if (typeof value !== "boolean") return;
+        info.maximized = value;
+        if (value) {
+          // Maximize
+          lastSize = { x: info.x, y: info.y, width: info.width, height: info.height };
+          this.os.registry.write(`me.endercass.compositor.win.${info.wid}.x`, 0);
+          this.os.registry.write(`me.endercass.compositor.win.${info.wid}.y`, 0);
+          this.os.registry.write(
+            `me.endercass.compositor.win.${info.wid}.width`,
+            window.innerWidth,
+          );
+          this.os.registry.write(
+            `me.endercass.compositor.win.${info.wid}.height`,
+            window.innerHeight
+          );
+        } else {
+          // Restore
+          this.os.registry.write(`me.endercass.compositor.win.${info.wid}.x`, lastSize.x);
+          this.os.registry.write(`me.endercass.compositor.win.${info.wid}.y`, lastSize.y);
+          this.os.registry.write(
+            `me.endercass.compositor.win.${info.wid}.width`,
+            lastSize.width,
+          );
+          this.os.registry.write(
+            `me.endercass.compositor.win.${info.wid}.height`,
+            lastSize.height,
+          );
+        }
+      },
+    );
+
+    addEventListener("resize", () => {
+      if (info.maximized) {
+        this.os.registry.write(`me.endercass.compositor.win.${info.wid}.x `, 0);
+        this.os.registry.write(`me.endercass.compositor.win.${info.wid}.y`, 0);
+        this.os.registry.write(
+          `me.endercass.compositor.win.${info.wid}.width`,
+          window.innerWidth,
+        );
+        this.os.registry.write(
+          `me.endercass.compositor.win.${info.wid}.height`,
+          window.innerHeight
+        );
+      }
+    });
 
     const closeButton = document.createElement("button");
     closeButton.textContent = "X";
@@ -603,7 +703,8 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
 
     const contentBox = document.createElement("div");
     contentBox.style.width = "100%";
-    contentBox.style.height = `calc(100% - ${titleBar.offsetHeight}px)`;
+    contentBox.style.flexGrow = "1";
+    contentBox.style.overflow = "hidden";
     win.appendChild(contentBox);
 
     this.os.registry.watch(
@@ -620,7 +721,7 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
           iframe.src = info.content.src;
           iframe.sandbox = "allow-scripts";
           iframe.style.width = "100%";
-          iframe.style.height = `calc(100% - ${titleBar.offsetHeight}px)`;
+          iframe.style.height = "100%";
           iframe.style.border = "none";
           contentBox.appendChild(iframe);
         } else if (info.content.type === "surface") {
@@ -851,6 +952,21 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
     const info = await this.info(wid);
     if (!info) throw new Error("Window not found");
     return info.resizable;
+  }
+
+  async setMaximized(wid: number, maximized: boolean): Promise<void> {
+    const info = await this.info(wid);
+    if (!info) throw new Error("Window not found");
+
+    await this.os.registry.write(
+      `me.endercass.compositor.win.${wid}.maximized`,
+      maximized,
+    );
+  }
+  async maximized(wid: number): Promise<boolean> {
+    const info = await this.info(wid);
+    if (!info) throw new Error("Window not found");
+    return info.maximized;
   }
 
   async namespace(wid: number): Promise<string> {
