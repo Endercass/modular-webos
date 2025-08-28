@@ -21,13 +21,13 @@ export interface WindowData {
 
 export type WindowContent =
   | {
-      type: "iframe";
-      src: string;
-    }
+    type: "iframe";
+    src: string;
+  }
   | {
-      type: "surface";
-      sid: string;
-    };
+    type: "surface";
+    sid: string;
+  };
 
 // To follow unienv WM spec in the future, for now based off of https://github.com/MercuryWorkshop/anuraOS/blob/main/src/AliceWM.tsx
 export interface Compositor<T> extends API {
@@ -88,7 +88,7 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
       windows = (await this.os.registry.read(
         "me.endercass.compositor.windows",
       )) as number[];
-    } catch {}
+    } catch { }
     for (const wid of windows) {
       await this.os.registry.delete(`me.endercass.compositor.win.${wid}.wid`);
       await this.os.registry.delete(`me.endercass.compositor.win.${wid}.title`);
@@ -121,7 +121,7 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
       displays = (await this.os.registry.read(
         "me.endercass.compositor.displays",
       )) as string[];
-    } catch {}
+    } catch { }
     for (const display of displays) {
       await this.os.registry.delete(`me.endercass.compositor.${display}.width`);
       await this.os.registry.delete(
@@ -274,7 +274,7 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
       wins = (await this.os.registry.read(
         "me.endercass.compositor.windows",
       )) as number[];
-    } catch {}
+    } catch { }
 
     wins.push(info.wid);
     await this.os.registry.write("me.endercass.compositor.windows", wins);
@@ -443,11 +443,22 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
 
     const titleBar = document.createElement("div");
     titleBar.style.backgroundColor = "#1a1a1a";
+    titleBar.style.display = "flex";
+    titleBar.style.alignItems = "center";
+    titleBar.style.justifyContent = "space-between";
     titleBar.style.cursor = "move";
+
+    const buttonBox = document.createElement("div");
+    buttonBox.style.display = "flex";
+    buttonBox.style.alignItems = "center";
+    buttonBox.style.justifyContent = "center";
 
     let isDragging = false;
 
     titleBar.addEventListener("pointerdown", (e) => {
+      if (e.target === buttonBox || buttonBox.contains(e.target as Node)) {
+        return;
+      }
       isDragging = true;
       document.querySelectorAll("iframe").forEach((f) => {
         f.style.pointerEvents = "none";
@@ -472,16 +483,18 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
     });
 
     document.addEventListener("pointerup", () => {
-      isDragging = false;
-      isResizing = false;
-      resizeDir = null;
-
+      if (isDragging) {
+        this.move(info.wid, info.x, info.y);
+        isDragging = false;
+      }
+      if (isResizing) {
+        this.resize(info.wid, info.width, info.height);
+        isResizing = false;
+        resizeDir = null;
+      }
       document.querySelectorAll("iframe").forEach((f) => {
         f.style.pointerEvents = "auto";
       });
-
-      this.resize(info.wid, info.width, info.height);
-      this.move(info.wid, info.x, info.y);
     });
 
     document.addEventListener("pointermove", (e) => {
@@ -567,6 +580,25 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
     );
 
     titleBar.appendChild(title);
+
+    titleBar.appendChild(buttonBox);
+
+    const closeButton = document.createElement("button");
+    closeButton.textContent = "X";
+    closeButton.style.width = "24px";
+    closeButton.style.height = "24px";
+    closeButton.style.margin = "4px";
+    closeButton.style.padding = "0";
+    closeButton.style.display = "flex";
+    closeButton.style.alignItems = "center";
+    closeButton.style.justifyContent = "center";
+    closeButton.style.cursor = "pointer";
+    closeButton.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.destroy(info.wid);
+    });
+    buttonBox.appendChild(closeButton);
+
     win.appendChild(titleBar);
 
     const contentBox = document.createElement("div");
@@ -724,7 +756,7 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
       wins = (await this.os.registry.read(
         "me.endercass.compositor.windows",
       )) as number[];
-    } catch {}
+    } catch { }
 
     wins = wins.filter((w) => w !== wid);
     await this.os.registry.write("me.endercass.compositor.windows", wins);
@@ -797,12 +829,12 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
       maxwidth = (await this.os.registry.read(
         `me.endercass.compositor.win.${wid}.maxwidth`,
       )) as number;
-    } catch {}
+    } catch { }
     try {
       maxheight = (await this.os.registry.read(
         `me.endercass.compositor.win.${wid}.maxheight`,
       )) as number;
-    } catch {}
+    } catch { }
     return { maxwidth, maxheight };
   }
 
