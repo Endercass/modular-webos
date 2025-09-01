@@ -75,6 +75,9 @@ export class LoopbackNetBus implements DuplexNetBus {
       start: (controller) => {
         this.controller = controller;
       },
+      cancel: async () => {
+        this.closed = true;
+      },
     });
 
     this.outbound = new WritableStream<NetPacket>({
@@ -84,6 +87,9 @@ export class LoopbackNetBus implements DuplexNetBus {
       },
       close: async () => {
         this.controller.close();
+        this.closed = true;
+      },
+      abort: async () => {
         this.closed = true;
       },
     });
@@ -322,4 +328,16 @@ export class NetApi implements API, DuplexNetBus {
     delete routes[keys[id]];
     await this.os.registry.write(this.name + ".routes", routes);
   }
+
+  // NOTES
+  // - This works great as a sort of alternate-IP, and handles layer 3 alright
+  // - A Socket API is strongly needed to make this truly useful, layer 3 is hard to actually use
+  // - Note that the payload for NetPacket is not the payload for TCP/UDP/etc, it's the entire packet payload, including the layer 4 protocol headers.
+  //   This is why there is no port-related functionality here.
+
+  // Unanswered questions:
+  // - We know in the future applications would ideally use a Socket API to interact with this, but how would a bus implement anything more complex than loopback?
+  // - Would the overhead of transmitting full packets (including TCP/UDP headers) be too high for some applications?
+  // - [!] Could typescript save us from having to manually parse binary data for protocols? Instead of using raw l4 payload, could we type the metadata to include parsed headers? this could bring the syntax of NetPacket<T> and Socket<T>
+  //       Custom protocols would be easy to implement, but what do we do about the protocol field? do we keep an arbitrary string or can we do some typescript magic to get a string from T somehow?
 }
