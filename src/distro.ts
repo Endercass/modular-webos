@@ -27,7 +27,7 @@ async function buildFS(fs: OS.FsApi) {
 }
 
 async function buildNetwork(net: OS.NetApi) {
-  await net.register("loopback", new OS.LoopbackBus());
+  await net.register("loopback", new OS.LoopbackNetBus());
   await net.route("127.0.0.1/8", "loopback");
 }
 
