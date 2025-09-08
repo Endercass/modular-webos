@@ -1,6 +1,8 @@
-import { type RefChannel, type RefChannelMessage } from "../channel";
-import { OpEnv } from "../openv";
-import { uriToChannel } from "../util";
+import type {
+  OpEnv,
+  RefChannel,
+  RefChannelMessage,
+} from "../../../../openv/mod";
 
 export class ServerApi {
   name = "party.openv.server";
@@ -10,13 +12,7 @@ export class ServerApi {
     this.openv = openv;
   }
 
-  async serve(
-    channel: RefChannel | string | URL,
-  ): Promise<{ stop: () => void }> {
-    if (typeof channel === "string" || channel instanceof URL) {
-      channel = await uriToChannel(channel);
-    }
-
+  async serve(channel: RefChannel): Promise<{ stop: () => void }> {
     let stopped = false;
 
     let lastId = 0;

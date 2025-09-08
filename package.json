@@ -1,7 +1,7 @@
 {
   "type": "module",
   "scripts": {
-    "build": "esbuild src/index.ts --minify --bundle --platform=browser --format=esm --outfile=dist/index.js && esbuild src/distro.ts --external:./index.js --minify --bundle --platform=browser --format=esm --outfile=dist/distro.js"
+    "build": "node build.js"
   },
   "devDependencies": {
     "esbuild": "^0.25.8"

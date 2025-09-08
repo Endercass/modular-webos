@@ -1,5 +1,5 @@
-import { type API } from "./apis/api.ts";
-import { type Registry } from "./registry.ts";
+import type { API } from "./api.ts";
+import type { Registry } from "./registry.ts";
 
 export class OpEnv {
   #reg: Registry;

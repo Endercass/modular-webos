@@ -1,5 +1,4 @@
-import { type OpEnv } from "../openv";
-import { type API } from "./api";
+import type { API, OpEnv } from "../../../../openv/mod";
 
 export class IdentityApi implements API {
   name = "party.openv.identity";

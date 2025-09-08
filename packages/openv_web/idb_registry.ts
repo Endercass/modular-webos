@@ -1,4 +1,4 @@
-import { type Registry, type RegistryValue } from "./registry";
+import type { Registry, RegistryValue } from "../openv/registry";
 
 export class IDBRegistry implements Registry {
   constructor(

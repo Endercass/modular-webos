@@ -1,9 +1,11 @@
-import { createListenerQueue } from "../channel";
-import { RegistryValue } from "../registry";
-import { type OpEnv } from "../openv";
-import { type API } from "./api";
-import { ServerApi } from "./server";
-import { ServiceApi } from "./service";
+import {
+  createListenerQueue,
+  type RegistryValue,
+  type OpEnv,
+  type API,
+} from "../../../../openv/mod";
+import type { ServerApi } from "../server/mod";
+import type { ServiceApi } from "../service/mod";
 
 export class ProcessesApi implements API {
   name = "party.openv.processes";

@@ -1,8 +1,7 @@
-import { OpEnv } from "../openv";
-import { API } from "./api";
-import { FsApi } from "./fs";
-import { ProcessesApi } from "./processes";
-import { ServiceApi } from "./service";
+import type { API, OpEnv } from "../../../../openv/mod";
+import type { FsApi } from "../fs/mod";
+import type { ProcessesApi } from "../processes/mod";
+import type { ServiceApi } from "../service/mod";
 
 export interface Resolver {
   /**

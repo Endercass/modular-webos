@@ -1,6 +1,4 @@
-import { type RegistryValue } from "../registry";
-import { type OpEnv } from "../openv";
-import { type API } from "./api";
+import type { OpEnv, RegistryValue, API } from "../../../../openv/mod";
 
 export class IPCApi implements API {
   name = "party.openv.ipc";

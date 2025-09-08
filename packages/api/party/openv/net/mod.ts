@@ -1,8 +1,6 @@
-import { RegistryValue } from "../registry";
-import { OpEnv } from "../openv";
-import { API } from "./api";
-import { IPCApi } from "./ipc";
-import { ServiceApi } from "./service";
+import type { API, OpEnv, RegistryValue } from "../../../../openv/mod";
+import type { IPCApi } from "../ipc/mod";
+import type { ServiceApi } from "../service/mod";
 
 /**
  * ipv4 or ipv6 address; no DNS resolution
