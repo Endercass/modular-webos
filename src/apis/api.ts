@@ -1,6 +1,6 @@
-import { type WebOS } from "../webos.ts";
+import { type OpEnv } from "../openv.ts";
 
 export interface API {
   name: string;
-  populate(os: WebOS): Promise<void>;
+  populate(openv: OpEnv): Promise<void>;
 }

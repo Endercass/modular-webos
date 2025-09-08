@@ -7,12 +7,12 @@
 
   <body>
     <script type="module">
-      import * as OS from "./dist/index.js";
+      import * as OE from "./dist/index.js";
       import * as Distro from "./dist/distro.js";
       const params = new URLSearchParams(location.search);
       const pid = +params.get("pid");
 
-      const q = OS.createListenerQueue();
+      const q = OE.createListenerQueue();
 
       const channel = {
         send(msg) {
@@ -36,7 +36,7 @@
       });
 
       try {
-        window.os = await Distro.connect(channel);
+        window.openv = await Distro.connect(channel);
         window.env = { PID: pid };
         window.exit = (code) => {
           window.parent.postMessage({ code, pid }, "*");
@@ -46,8 +46,8 @@
         window.eprint = console.error.bind(console);
         window.eprintln = console.error.bind(console);
 
-        const args = await os.api["me.endercass.processes"].getArgs();
-        const data = await os.api["me.endercass.fs"].readFile(args[0]);
+        const args = await openv.api["party.openv.processes"].getArgs();
+        const data = await openv.api["party.openv.fs"].readFile(args[0]);
 
         const { main } = await import(
           URL.createObjectURL(

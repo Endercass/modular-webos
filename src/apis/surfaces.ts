@@ -1,5 +1,5 @@
 import { RegistryValue } from "../registry";
-import { type WebOS } from "../webos";
+import { type OpEnv } from "../openv";
 import { type API } from "./api";
 import { IPCApi } from "./ipc";
 import { ServiceApi } from "./service";
@@ -245,14 +245,14 @@ export class CanvasSurface implements Surface {
 }
 
 export class SurfacesApi implements API {
-  name = "me.endercass.surface";
-  os: WebOS;
-  async populate(os: WebOS): Promise<void> {
-    this.os = os;
+  name = "party.openv.surface";
+  openv: OpEnv;
+  async populate(openv: OpEnv): Promise<void> {
+    this.openv = openv;
   }
 
   async register(namespace: string, surface: Surface): Promise<void> {
-    const services = this.os.getAPI<ServiceApi>("me.endercass.service");
+    const services = this.openv.getAPI<ServiceApi>("party.openv.service");
     await services.defineFunction(
       "clear",
       surface.clear.bind(surface) as any,
@@ -279,7 +279,7 @@ export class SurfacesApi implements API {
       },
     );
 
-    const ipc = this.os.getAPI<IPCApi>("me.endercass.ipc");
+    const ipc = this.openv.getAPI<IPCApi>("party.openv.ipc");
     surface.on("clear", async () => {
       try {
         await ipc.send("clear", [], namespace, { root: this.name });
@@ -319,8 +319,8 @@ export class SurfacesApi implements API {
   }
 
   async getSurface(namespace: string): Promise<Surface> {
-    const services = this.os.getAPI<ServiceApi>("me.endercass.service");
-    const ipc = this.os.getAPI<IPCApi>("me.endercass.ipc");
+    const services = this.openv.getAPI<ServiceApi>("party.openv.service");
+    const ipc = this.openv.getAPI<IPCApi>("party.openv.ipc");
 
     const enabledListeners: Map<string, Map<string, boolean>> = new Map();
 

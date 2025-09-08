@@ -1,11 +1,11 @@
-import { type WebOS } from "../webos";
+import { type OpEnv } from "../openv";
 import { type API } from "./api";
 
 export class IdentityApi implements API {
-  name = "me.endercass.identity";
-  os: WebOS;
-  async populate(os: WebOS): Promise<void> {
-    this.os = os;
+  name = "party.openv.identity";
+  openv: OpEnv;
+  async populate(os: OpEnv): Promise<void> {
+    this.openv = os;
   }
 
   async createIdentity(
@@ -38,7 +38,7 @@ export class IdentityApi implements API {
 
     let userIds: number[] = [];
     try {
-      userIds = (await this.os.registry.read(
+      userIds = (await this.openv.registry.read(
         `${options.root}.userIds`,
       )) as number[];
     } catch {
@@ -62,17 +62,17 @@ export class IdentityApi implements API {
       throw new Error(`Identity ${id} cannot inherit from itself.`);
     }
 
-    await this.os.registry.write(`${options.root}.${id}.name`, name);
-    await this.os.registry.write(`${options.root}.${id}.inherits`, inherits);
+    await this.openv.registry.write(`${options.root}.${id}.name`, name);
+    await this.openv.registry.write(`${options.root}.${id}.inherits`, inherits);
     for (const [perm, value] of Object.entries(permissions)) {
-      await this.os.registry.write(
+      await this.openv.registry.write(
         `${options.root}.${id}.permissions.${perm}`,
         value,
       );
     }
 
     userIds.push(id);
-    await this.os.registry.write(
+    await this.openv.registry.write(
       `${options.root}.userIds`,
       userIds.sort((a, b) => a - b),
     );
@@ -91,12 +91,12 @@ export class IdentityApi implements API {
     }
 
     if (
-      !(await this.os.registry.has(`${options.root}.userIds`)) ||
-      !(await this.os.registry.has(`${options.root}.${id}.name`))
+      !(await this.openv.registry.has(`${options.root}.userIds`)) ||
+      !(await this.openv.registry.has(`${options.root}.${id}.name`))
     ) {
       throw new Error(`Identity ${id} does not exist.`);
     }
-    return (await this.os.registry.read(
+    return (await this.openv.registry.read(
       `${options.root}.${id}.name`,
     )) as string;
   }
@@ -120,12 +120,12 @@ export class IdentityApi implements API {
       throw new Error("Permission value must be a boolean.");
     }
     if (
-      !(await this.os.registry.has(`${options.root}.userIds`)) ||
-      !(await this.os.registry.has(`${options.root}.${id}`))
+      !(await this.openv.registry.has(`${options.root}.userIds`)) ||
+      !(await this.openv.registry.has(`${options.root}.${id}`))
     ) {
       throw new Error(`Identity ${id} does not exist.`);
     }
-    await this.os.registry.write(
+    await this.openv.registry.write(
       `${options.root}.${id}.permissions.${permission}`,
       value,
     );
@@ -148,8 +148,8 @@ export class IdentityApi implements API {
       throw new Error("Permissions must be an object.");
     }
     if (
-      !(await this.os.registry.has(`${options.root}.userIds`)) ||
-      !(await this.os.registry.has(`${options.root}.${id}`))
+      !(await this.openv.registry.has(`${options.root}.userIds`)) ||
+      !(await this.openv.registry.has(`${options.root}.${id}`))
     ) {
       throw new Error(`Identity ${id} does not exist.`);
     }
@@ -160,7 +160,7 @@ export class IdentityApi implements API {
       if (typeof value !== "boolean") {
         throw new Error("Permission value must be a boolean.");
       }
-      await this.os.registry.write(
+      await this.openv.registry.write(
         `${options.root}.${id}.permissions.${perm}`,
         value,
       );
@@ -183,8 +183,8 @@ export class IdentityApi implements API {
     }
 
     if (
-      !(await this.os.registry.has(`${options.root}.userIds`)) ||
-      !(await this.os.registry.has(`${options.root}.${id}`))
+      !(await this.openv.registry.has(`${options.root}.userIds`)) ||
+      !(await this.openv.registry.has(`${options.root}.${id}`))
     ) {
       throw new Error(`Identity ${id} does not exist.`);
     }
@@ -201,16 +201,16 @@ export class IdentityApi implements API {
       visited.add(currentId);
 
       const permPath = `${options.root}.${currentId}.permissions.${permission}`;
-      if (await this.os.registry.has(permPath)) {
-        const permValue = await this.os.registry.read(permPath);
+      if (await this.openv.registry.has(permPath)) {
+        const permValue = await this.openv.registry.read(permPath);
         if (typeof permValue === "boolean") {
           return permValue;
         }
       }
 
       const inheritsPath = `${options.root}.${currentId}.inherits`;
-      if (await this.os.registry.has(inheritsPath)) {
-        const inherits = await this.os.registry.read(inheritsPath);
+      if (await this.openv.registry.has(inheritsPath)) {
+        const inherits = await this.openv.registry.read(inheritsPath);
         if (Array.isArray(inherits)) {
           for (const parentId of inherits) {
             if (typeof parentId === "number" && !visited.has(parentId)) {

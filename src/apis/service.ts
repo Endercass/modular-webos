@@ -1,14 +1,14 @@
 import { type RegistryValue } from "../registry";
-import { type WebOS } from "../webos";
+import { type OpEnv } from "../openv";
 import { type API } from "./api";
 import { type IPCApi } from "./ipc";
 
 export class ServiceApi implements API {
-  name = "me.endercass.service";
-  os: WebOS;
+  name = "party.openv.service";
+  openv: OpEnv;
 
-  async populate(os: WebOS): Promise<void> {
-    this.os = os;
+  async populate(openv: OpEnv): Promise<void> {
+    this.openv = openv;
   }
 
   async defineAnycastFunction<
@@ -28,7 +28,7 @@ export class ServiceApi implements API {
     let ids: number[] = [];
 
     try {
-      ids = await this.os.registry.read(
+      ids = await this.openv.registry.read(
         `${options.root}.${namespace}.${name}.anycast`,
       );
     } catch {}
@@ -42,7 +42,10 @@ export class ServiceApi implements API {
       bufferLength: options.bufferLength,
     });
 
-    this.os.registry.write(`${options.root}.${namespace}.${name}.anycast`, ids);
+    this.openv.registry.write(
+      `${options.root}.${namespace}.${name}.anycast`,
+      ids,
+    );
   }
 
   async defineFunction<
@@ -65,7 +68,7 @@ export class ServiceApi implements API {
       throw new Error("Provided value must be a function.");
     }
 
-    const ipc = this.os.getAPI<IPCApi>("me.endercass.ipc");
+    const ipc = this.openv.getAPI<IPCApi>("party.openv.ipc");
     try {
       await ipc.clear(name + ".call", namespace, {
         root: options.root,
@@ -146,7 +149,7 @@ export class ServiceApi implements API {
     if (typeof func !== "function") {
       throw new Error("Provided value must be a function.");
     }
-    const ipc = this.os.getAPI<IPCApi>("me.endercass.ipc");
+    const ipc = this.openv.getAPI<IPCApi>("party.openv.ipc");
     try {
       await ipc.clear(name + ".call", namespace, {
         root: options.root,
@@ -165,7 +168,7 @@ export class ServiceApi implements API {
             const { value, done } = await generator.next();
             if (done) {
               // clean up, intentionally not awaited
-              this.os.registry.delete(
+              this.openv.registry.delete(
                 `${options.root}.${namespace}.${name}.generator.${generatorId}.next`,
               );
             }
@@ -268,13 +271,13 @@ export class ServiceApi implements API {
     }
 
     try {
-      const ids = await this.os.registry.read(
+      const ids = await this.openv.registry.read(
         `${options.root}.${namespace}.${name}.anycast`,
       );
-      this.os.registry.write(`${options.root}.${namespace}.${name}.anycast`, [
-        ...ids.slice(1),
-        ids[0],
-      ]);
+      this.openv.registry.write(
+        `${options.root}.${namespace}.${name}.anycast`,
+        [...ids.slice(1), ids[0]],
+      );
 
       return await this.callFunction(`${name}$${ids[0]}`, args, namespace, {
         root: options.root,
@@ -282,7 +285,7 @@ export class ServiceApi implements API {
       });
     } catch {}
 
-    const ipc = this.os.getAPI<IPCApi>("me.endercass.ipc");
+    const ipc = this.openv.getAPI<IPCApi>("party.openv.ipc");
     const transactionId = crypto.randomUUID();
 
     let resolve;
@@ -340,13 +343,13 @@ export class ServiceApi implements API {
       throw new Error("Function name must be a non-empty string.");
     }
     try {
-      await this.os.registry.delete(
+      await this.openv.registry.delete(
         `${options.root}.${namespace}.${name}.anycast`,
       );
       return;
     } catch {}
 
-    const ipc = this.os.getAPI<IPCApi>("me.endercass.ipc");
+    const ipc = this.openv.getAPI<IPCApi>("party.openv.ipc");
     try {
       await ipc.clear(name + ".call", namespace, {
         root: options.root,
@@ -358,8 +361,10 @@ export class ServiceApi implements API {
       });
     } catch {}
 
-    await this.os.registry.delete(`${options.root}.${namespace}.${name}.call`);
-    await this.os.registry.delete(
+    await this.openv.registry.delete(
+      `${options.root}.${namespace}.${name}.call`,
+    );
+    await this.openv.registry.delete(
       `${options.root}.${namespace}.${name}.response`,
     );
   }
@@ -375,7 +380,7 @@ export class ServiceApi implements API {
     if (typeof name !== "string" || name.length === 0) {
       throw new Error("Function name must be a non-empty string.");
     }
-    const ipc = this.os.getAPI<IPCApi>("me.endercass.ipc");
+    const ipc = this.openv.getAPI<IPCApi>("party.openv.ipc");
     try {
       await ipc.clear(name + ".call", namespace, {
         root: options.root,
@@ -386,17 +391,19 @@ export class ServiceApi implements API {
         root: options.root,
       });
     } catch {}
-    await this.os.registry.delete(`${options.root}.${namespace}.${name}.call`);
-    await this.os.registry.delete(
+    await this.openv.registry.delete(
+      `${options.root}.${namespace}.${name}.call`,
+    );
+    await this.openv.registry.delete(
       `${options.root}.${namespace}.${name}.response`,
     );
-    const all = await this.os.registry.keys();
+    const all = await this.openv.registry.keys();
     await Promise.all(
       all
         .filter((k) =>
           k.startsWith(`${options.root}.${namespace}.${name}.generator.`),
         )
-        .map((k) => this.os.registry.delete(k)),
+        .map((k) => this.openv.registry.delete(k)),
     );
   }
 
@@ -407,11 +414,11 @@ export class ServiceApi implements API {
     } = {},
   ) {
     options.root ??= this.name + ".function";
-    const all = await this.os.registry.keys();
+    const all = await this.openv.registry.keys();
     await Promise.all(
       all
         .filter((k) => k.startsWith(`${options.root}.${namespace}`))
-        .map((k) => this.os.registry.delete(k)),
+        .map((k) => this.openv.registry.delete(k)),
     );
   }
 }

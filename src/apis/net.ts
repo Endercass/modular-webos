@@ -1,5 +1,5 @@
 import { RegistryValue } from "../registry";
-import { WebOS } from "../webos";
+import { OpEnv } from "../openv";
 import { API } from "./api";
 import { IPCApi } from "./ipc";
 import { ServiceApi } from "./service";
@@ -106,24 +106,24 @@ export class LoopbackNetBus implements DuplexNetBus {
 }
 
 export class NetApi implements API, DuplexNetBus {
-  name = "me.endercass.net";
+  name = "party.openv.net";
 
-  os: WebOS;
+  openv: OpEnv;
 
   ready = Promise.resolve();
   inbound: ReadableStream<NetPacket>;
   outbound: WritableStream<NetPacket>;
 
-  async populate(os: WebOS): Promise<void> {
-    this.os = os;
+  async populate(openv: OpEnv): Promise<void> {
+    this.openv = openv;
 
     this.inbound = new ReadableStream<NetPacket>({
       start: async (controller) => {
-        const ipc = this.os.getAPI<IPCApi>("me.endercass.ipc");
+        const ipc = this.openv.getAPI<IPCApi>("party.openv.ipc");
 
         const activeBuses = new Set<string>();
 
-        this.os.registry.watch(
+        this.openv.registry.watch(
           this.name + ".buses",
           async (buses: RegistryValue) => {
             if (!Array.isArray(buses)) {
@@ -205,7 +205,7 @@ export class NetApi implements API, DuplexNetBus {
           console.debug("No such bus:", via);
           return;
         }
-        const ipc = this.os.getAPI<IPCApi>("me.endercass.ipc");
+        const ipc = this.openv.getAPI<IPCApi>("party.openv.ipc");
         await ipc.send("outbound", packet as any, via, {
           root: this.name + ".bus",
         });
@@ -223,7 +223,7 @@ export class NetApi implements API, DuplexNetBus {
   async register(name: string, bus: DuplexNetBus): Promise<void> {
     await bus.ready;
 
-    const ipc = this.os.getAPI<IPCApi>("me.endercass.ipc");
+    const ipc = this.openv.getAPI<IPCApi>("party.openv.ipc");
     await ipc.listen(
       "outbound",
       async (packet: RegistryValue) => {
@@ -267,21 +267,21 @@ export class NetApi implements API, DuplexNetBus {
       b.push(name);
     }
 
-    await this.os.registry.write(this.name + ".buses", b);
+    await this.openv.registry.write(this.name + ".buses", b);
   }
   async unregister(name: string): Promise<void> {
-    const services = this.os.getAPI<ServiceApi>("me.endercass.service");
+    const services = this.openv.getAPI<ServiceApi>("party.openv.service");
     await services.clearFunctions(name, { root: this.name + ".bus" });
 
     let b = await this.listBus();
     b = b.filter((x) => x !== name);
-    await this.os.registry.write(this.name + ".buses", b);
+    await this.openv.registry.write(this.name + ".buses", b);
   }
 
   async listBus(): Promise<string[]> {
     try {
       return (
-        ((await this.os.registry.read(this.name + ".buses")) as
+        ((await this.openv.registry.read(this.name + ".buses")) as
           | string[]
           | null) ?? []
       );
@@ -295,7 +295,7 @@ export class NetApi implements API, DuplexNetBus {
   }> {
     try {
       return (
-        ((await this.os.registry.read(this.name + ".routes")) as {
+        ((await this.openv.registry.read(this.name + ".routes")) as {
           [node: string]: { via: string };
         } | null) ?? {}
       );
@@ -312,7 +312,7 @@ export class NetApi implements API, DuplexNetBus {
   async route(node: string, via: string): Promise<void> {
     const routes = await this.listRoutes();
     routes[node] = { via };
-    await this.os.registry.write(this.name + ".routes", routes);
+    await this.openv.registry.write(this.name + ".routes", routes);
   }
 
   /**
@@ -326,7 +326,7 @@ export class NetApi implements API, DuplexNetBus {
       throw new Error("Invalid route ID");
     }
     delete routes[keys[id]];
-    await this.os.registry.write(this.name + ".routes", routes);
+    await this.openv.registry.write(this.name + ".routes", routes);
   }
 
   // NOTES

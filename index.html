@@ -8,7 +8,7 @@
     <script type="module">
       import * as Distro from "./dist/distro.js";
 
-      window.os = await Distro.connect("sw:///");
+      window.openv = await Distro.connect("sw:///");
 
       const iframes = {};
 
@@ -44,9 +44,9 @@
           if (commandBar.value.startsWith("con ")) {
             const con = commandBar.value.slice(4).trim();
             if (
-              (await os.registry.read("me.endercass.con.list")).includes(con)
+              (await openv.registry.read("party.openv.con.list")).includes(con)
             ) {
-              await os.registry.write("me.endercass.con.current", con);
+              await openv.registry.write("party.openv.con.current", con);
             }
           } else if (commandBar.value === "reboot") {
             fetch("/reboot");
@@ -68,7 +68,7 @@
       async function hideCommandBar() {
         commandBar.style.display = "none";
 
-        const current = await os.registry.read("me.endercass.con.current");
+        const current = await openv.registry.read("party.openv.con.current");
         if (iframes[current]) {
           iframes[current].contentWindow.focus();
         }
@@ -99,14 +99,14 @@
 
       const display = crypto.randomUUID().split("-")[0];
 
-      const processes = await os.api["me.endercass.processes"];
+      const processes = await openv.api["party.openv.processes"];
       await processes.join(display);
 
       const params = new URLSearchParams(window.location.search);
 
       window.$if = iframes;
 
-      await os.registry.watch("me.endercass.con.list", (cons) => {
+      await openv.registry.watch("party.openv.con.list", (cons) => {
         for (const t of cons) {
           if (!iframes[t]) {
             const iframe = document.createElement("iframe");
@@ -133,7 +133,7 @@
         }
       });
 
-      await os.registry.watch("me.endercass.con.current", (n) => {
+      await openv.registry.watch("party.openv.con.current", (n) => {
         for (const t in iframes) {
           if (t === n) {
             iframes[t].style.display = "block";

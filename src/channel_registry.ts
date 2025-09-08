@@ -7,19 +7,19 @@ export class ChannelRegistry implements Registry {
     this.#channel = channel;
     this.#channel.subscribe((msg) => {
       if (msg.type === "request.set") {
-        this.listeners.write.forEach(cb => {
-          cb(msg.key, msg.value)
+        this.listeners.write.forEach((cb) => {
+          cb(msg.key, msg.value);
         });
       } else if (msg.type === "request.delete") {
-        this.listeners.delete.forEach(cb => {
-          cb(msg.key)
+        this.listeners.delete.forEach((cb) => {
+          cb(msg.key);
         });
       } else if (msg.type === "request.get") {
-        this.listeners.read.forEach(async cb => {
-          cb(msg.key, await this.read(msg.key))
-        })
+        this.listeners.read.forEach(async (cb) => {
+          cb(msg.key, await this.read(msg.key));
+        });
       }
-    })
+    });
   }
   #lastId = 0;
 

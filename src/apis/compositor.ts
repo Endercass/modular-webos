@@ -1,4 +1,4 @@
-import { type WebOS } from "../webos";
+import { type OpEnv } from "../openv";
 import { type API } from "./api";
 import { ServiceApi } from "./service";
 import { CanvasSurface, SurfacesApi } from "./surfaces";
@@ -22,13 +22,13 @@ export interface WindowData {
 
 export type WindowContent =
   | {
-    type: "iframe";
-    src: string;
-  }
+      type: "iframe";
+      src: string;
+    }
   | {
-    type: "surface";
-    sid: string;
-  };
+      type: "surface";
+      sid: string;
+    };
 
 // To follow unienv WM spec in the future, for now based off of https://github.com/MercuryWorkshop/anuraOS/blob/main/src/AliceWM.tsx
 export interface Compositor<T> extends API {
@@ -79,75 +79,83 @@ export interface Compositor<T> extends API {
 }
 
 export class ReferenceCompositor implements Compositor<HTMLElement> {
-  name = "me.endercass.compositor";
-  os: WebOS;
+  name = "party.openv.compositor";
+  openv: OpEnv;
 
-  async populate(os: WebOS) {
-    this.os = os;
+  async populate(openv: OpEnv) {
+    this.openv = openv;
   }
 
   async start(): Promise<void> {
     let windows: number[] = [];
     try {
-      windows = (await this.os.registry.read(
-        "me.endercass.compositor.windows",
+      windows = (await this.openv.registry.read(
+        "party.openv.compositor.windows",
       )) as number[];
-    } catch { }
+    } catch {}
     for (const wid of windows) {
-      await this.os.registry.delete(`me.endercass.compositor.win.${wid}.wid`);
-      await this.os.registry.delete(`me.endercass.compositor.win.${wid}.title`);
-      await this.os.registry.delete(`me.endercass.compositor.win.${wid}.x`);
-      await this.os.registry.delete(`me.endercass.compositor.win.${wid}.y`);
-      await this.os.registry.delete(`me.endercass.compositor.win.${wid}.z`);
-      await this.os.registry.delete(
-        `me.endercass.compositor.win.${wid}.minwidth`,
+      await this.openv.registry.delete(`party.openv.compositor.win.${wid}.wid`);
+      await this.openv.registry.delete(
+        `party.openv.compositor.win.${wid}.title`,
       );
-      await this.os.registry.delete(
-        `me.endercass.compositor.win.${wid}.minheight`,
+      await this.openv.registry.delete(`party.openv.compositor.win.${wid}.x`);
+      await this.openv.registry.delete(`party.openv.compositor.win.${wid}.y`);
+      await this.openv.registry.delete(`party.openv.compositor.win.${wid}.z`);
+      await this.openv.registry.delete(
+        `party.openv.compositor.win.${wid}.minwidth`,
       );
-      await this.os.registry.delete(
-        `me.endercass.compositor.win.${wid}.height`,
+      await this.openv.registry.delete(
+        `party.openv.compositor.win.${wid}.minheight`,
       );
-      await this.os.registry.delete(`me.endercass.compositor.win.${wid}.width`);
-      await this.os.registry.delete(`me.endercass.compositor.win.${wid}.class`);
-      await this.os.registry.delete(
-        `me.endercass.compositor.win.${wid}.resizable`,
+      await this.openv.registry.delete(
+        `party.openv.compositor.win.${wid}.height`,
       );
-      await this.os.registry.delete(
-        `me.endercass.compositor.win.${wid}.maximized`,
+      await this.openv.registry.delete(
+        `party.openv.compositor.win.${wid}.width`,
       );
-      await this.os.registry.delete(
-        `me.endercass.compositor.win.${wid}.content`,
+      await this.openv.registry.delete(
+        `party.openv.compositor.win.${wid}.class`,
+      );
+      await this.openv.registry.delete(
+        `party.openv.compositor.win.${wid}.resizable`,
+      );
+      await this.openv.registry.delete(
+        `party.openv.compositor.win.${wid}.maximized`,
+      );
+      await this.openv.registry.delete(
+        `party.openv.compositor.win.${wid}.content`,
       );
     }
 
-    const services = this.os.getAPI<ServiceApi>("me.endercass.service");
+    const services = this.openv.getAPI<ServiceApi>("party.openv.service");
 
     let displays: string[] = [];
     try {
-      displays = (await this.os.registry.read(
-        "me.endercass.compositor.displays",
+      displays = (await this.openv.registry.read(
+        "party.openv.compositor.displays",
       )) as string[];
-    } catch { }
+    } catch {}
     for (const display of displays) {
-      await this.os.registry.delete(`me.endercass.compositor.${display}.width`);
-      await this.os.registry.delete(
-        `me.endercass.compositor.${display}.height`,
+      await this.openv.registry.delete(
+        `party.openv.compositor.${display}.width`,
+      );
+      await this.openv.registry.delete(
+        `party.openv.compositor.${display}.height`,
       );
       await services.clearFunctions(display, { root: this.name });
     }
 
-    await this.os.registry.write("me.endercass.compositor.windows", []);
-    await this.os.registry.write("me.endercass.compositor.displays", []);
+    await this.openv.registry.write("party.openv.compositor.windows", []);
+    await this.openv.registry.write("party.openv.compositor.displays", []);
   }
 
   async displays(): Promise<string[]> {
     try {
-      return (await this.os.registry.read(
-        "me.endercass.compositor.displays",
+      return (await this.openv.registry.read(
+        "party.openv.compositor.displays",
       )) as string[];
     } catch {
-      await this.os.registry.write("me.endercass.compositor.displays", []);
+      await this.openv.registry.write("party.openv.compositor.displays", []);
       return [];
     }
   }
@@ -161,12 +169,12 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
     root.style.backgroundColor = "#000000";
 
     addEventListener("resize", () => {
-      this.os.registry.write(
-        `me.endercass.compositor.${namespace}.width`,
+      this.openv.registry.write(
+        `party.openv.compositor.${namespace}.width`,
         window.innerWidth,
       );
-      this.os.registry.write(
-        `me.endercass.compositor.${namespace}.height`,
+      this.openv.registry.write(
+        `party.openv.compositor.${namespace}.height`,
         window.innerHeight,
       );
     });
@@ -174,7 +182,7 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
     // Initial write
     window.dispatchEvent(new Event("resize"));
 
-    const services = this.os.getAPI<ServiceApi>("me.endercass.service");
+    const services = this.openv.getAPI<ServiceApi>("party.openv.service");
     await services.defineFunction(
       "create",
       this.#create.bind(this, root) as any,
@@ -182,13 +190,13 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
       { root: this.name },
     );
 
-    const displays = (await this.os.registry.read(
-      "me.endercass.compositor.displays",
+    const displays = (await this.openv.registry.read(
+      "party.openv.compositor.displays",
     )) as string[];
 
     displays.push(namespace);
-    await this.os.registry.write(
-      "me.endercass.compositor.displays",
+    await this.openv.registry.write(
+      "party.openv.compositor.displays",
       displays.filter((v, i, a) => a.indexOf(v) === i),
     );
   }
@@ -196,11 +204,11 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
     namespace: string,
   ): Promise<{ width: number; height: number } | null> {
     try {
-      const width = (await this.os.registry.read(
-        `me.endercass.compositor.${namespace}.width`,
+      const width = (await this.openv.registry.read(
+        `party.openv.compositor.${namespace}.width`,
       )) as number;
-      const height = (await this.os.registry.read(
-        `me.endercass.compositor.${namespace}.height`,
+      const height = (await this.openv.registry.read(
+        `party.openv.compositor.${namespace}.height`,
       )) as number;
       return { width, height };
     } catch {
@@ -228,68 +236,68 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
       content: _info.content ?? { type: "iframe", src: "about:blank" },
     } as WindowData;
 
-    await this.os.registry.write(
-      `me.endercass.compositor.win.${info.wid}.wid`,
+    await this.openv.registry.write(
+      `party.openv.compositor.win.${info.wid}.wid`,
       info.wid,
     );
-    await this.os.registry.write(
-      `me.endercass.compositor.win.${info.wid}.title`,
+    await this.openv.registry.write(
+      `party.openv.compositor.win.${info.wid}.title`,
       info.title,
     );
-    await this.os.registry.write(
-      `me.endercass.compositor.win.${info.wid}.x`,
+    await this.openv.registry.write(
+      `party.openv.compositor.win.${info.wid}.x`,
       info.x,
     );
-    await this.os.registry.write(
-      `me.endercass.compositor.win.${info.wid}.y`,
+    await this.openv.registry.write(
+      `party.openv.compositor.win.${info.wid}.y`,
       info.y,
     );
-    await this.os.registry.write(
-      `me.endercass.compositor.win.${info.wid}.z`,
+    await this.openv.registry.write(
+      `party.openv.compositor.win.${info.wid}.z`,
       info.z,
     );
-    await this.os.registry.write(
-      `me.endercass.compositor.win.${info.wid}.minwidth`,
+    await this.openv.registry.write(
+      `party.openv.compositor.win.${info.wid}.minwidth`,
       info.minwidth,
     );
-    await this.os.registry.write(
-      `me.endercass.compositor.win.${info.wid}.minheight`,
+    await this.openv.registry.write(
+      `party.openv.compositor.win.${info.wid}.minheight`,
       info.minheight,
     );
-    await this.os.registry.write(
-      `me.endercass.compositor.win.${info.wid}.height`,
+    await this.openv.registry.write(
+      `party.openv.compositor.win.${info.wid}.height`,
       info.height,
     );
-    await this.os.registry.write(
-      `me.endercass.compositor.win.${info.wid}.width`,
+    await this.openv.registry.write(
+      `party.openv.compositor.win.${info.wid}.width`,
       info.width,
     );
-    await this.os.registry.write(
-      `me.endercass.compositor.win.${info.wid}.class`,
+    await this.openv.registry.write(
+      `party.openv.compositor.win.${info.wid}.class`,
       info.class,
     );
-    await this.os.registry.write(
-      `me.endercass.compositor.win.${info.wid}.resizable`,
+    await this.openv.registry.write(
+      `party.openv.compositor.win.${info.wid}.resizable`,
       info.resizable,
     );
-    await this.os.registry.write(
-      `me.endercass.compositor.win.${info.wid}.maximized`,
+    await this.openv.registry.write(
+      `party.openv.compositor.win.${info.wid}.maximized`,
       info.maximized,
     );
-    await this.os.registry.write(
-      `me.endercass.compositor.win.${info.wid}.content`,
+    await this.openv.registry.write(
+      `party.openv.compositor.win.${info.wid}.content`,
       info.content,
     );
 
     let wins: number[] = [];
     try {
-      wins = (await this.os.registry.read(
-        "me.endercass.compositor.windows",
+      wins = (await this.openv.registry.read(
+        "party.openv.compositor.windows",
       )) as number[];
-    } catch { }
+    } catch {}
 
     wins.push(info.wid);
-    await this.os.registry.write("me.endercass.compositor.windows", wins);
+    await this.openv.registry.write("party.openv.compositor.windows", wins);
 
     const win = document.createElement("div");
     win.style.position = "absolute";
@@ -300,40 +308,40 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
     win.style.display = "flex";
     win.style.flexDirection = "column";
 
-    this.os.registry.watch(
-      `me.endercass.compositor.win.${info.wid}.x`,
+    this.openv.registry.watch(
+      `party.openv.compositor.win.${info.wid}.x`,
       (value) => {
         if (typeof value !== "number") return;
         info.x = value;
         win.style.left = value + "px";
       },
     );
-    this.os.registry.watch(
-      `me.endercass.compositor.win.${info.wid}.y`,
+    this.openv.registry.watch(
+      `party.openv.compositor.win.${info.wid}.y`,
       (value) => {
         if (typeof value !== "number") return;
         info.y = value;
         win.style.top = value + "px";
       },
     );
-    this.os.registry.watch(
-      `me.endercass.compositor.win.${info.wid}.width`,
+    this.openv.registry.watch(
+      `party.openv.compositor.win.${info.wid}.width`,
       (value) => {
         if (typeof value !== "number") return;
         info.width = value;
         win.style.width = value + "px";
       },
     );
-    this.os.registry.watch(
-      `me.endercass.compositor.win.${info.wid}.height`,
+    this.openv.registry.watch(
+      `party.openv.compositor.win.${info.wid}.height`,
       (value) => {
         if (typeof value !== "number") return;
         info.height = value;
         win.style.height = value + "px";
       },
     );
-    this.os.registry.watch(
-      `me.endercass.compositor.win.${info.wid}.z`,
+    this.openv.registry.watch(
+      `party.openv.compositor.win.${info.wid}.z`,
       (value) => {
         if (typeof value !== "number") return;
         info.z = value;
@@ -341,31 +349,31 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
       },
     );
 
-    this.os.registry.watch(
-      `me.endercass.compositor.win.${info.wid}.resizable`,
+    this.openv.registry.watch(
+      `party.openv.compositor.win.${info.wid}.resizable`,
       (value) => {
         if (typeof value !== "boolean") return;
         info.resizable = value;
       },
     );
 
-    this.os.registry.watch(
-      `me.endercass.compositor.win.${info.wid}.class`,
+    this.openv.registry.watch(
+      `party.openv.compositor.win.${info.wid}.class`,
       (value) => {
         if (typeof value !== "string") return;
         info.class = value;
       },
     );
 
-    this.os.registry.watch(
-      `me.endercass.compositor.win.${info.wid}.minwidth`,
+    this.openv.registry.watch(
+      `party.openv.compositor.win.${info.wid}.minwidth`,
       (value) => {
         if (typeof value !== "number") return;
         info.minwidth = value;
       },
     );
-    this.os.registry.watch(
-      `me.endercass.compositor.win.${info.wid}.minheight`,
+    this.openv.registry.watch(
+      `party.openv.compositor.win.${info.wid}.minheight`,
       (value) => {
         if (typeof value !== "number") return;
         info.minheight = value;
@@ -419,8 +427,15 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
         f.style.pointerEvents = "none";
       });
       this.focus(info.wid);
-      if (await this.os.registry.read(`me.endercass.compositor.win.${info.wid}.maximized`)) {
-        this.os.registry.write(`me.endercass.compositor.win.${info.wid}.maximized`, false);
+      if (
+        await this.openv.registry.read(
+          `party.openv.compositor.win.${info.wid}.maximized`,
+        )
+      ) {
+        this.openv.registry.write(
+          `party.openv.compositor.win.${info.wid}.maximized`,
+          false,
+        );
       }
       e.preventDefault();
     });
@@ -433,8 +448,15 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
         f.style.pointerEvents = "none";
       });
       this.focus(info.wid);
-      if (await this.os.registry.read(`me.endercass.compositor.win.${info.wid}.maximized`)) {
-        this.os.registry.write(`me.endercass.compositor.win.${info.wid}.maximized`, false);
+      if (
+        await this.openv.registry.read(
+          `party.openv.compositor.win.${info.wid}.maximized`,
+        )
+      ) {
+        this.openv.registry.write(
+          `party.openv.compositor.win.${info.wid}.maximized`,
+          false,
+        );
       }
       e.preventDefault();
     });
@@ -447,8 +469,15 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
         f.style.pointerEvents = "none";
       });
       this.focus(info.wid);
-      if (await this.os.registry.read(`me.endercass.compositor.win.${info.wid}.maximized`)) {
-        this.os.registry.write(`me.endercass.compositor.win.${info.wid}.maximized`, false);
+      if (
+        await this.openv.registry.read(
+          `party.openv.compositor.win.${info.wid}.maximized`,
+        )
+      ) {
+        this.openv.registry.write(
+          `party.openv.compositor.win.${info.wid}.maximized`,
+          false,
+        );
       }
       e.preventDefault();
     });
@@ -461,8 +490,15 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
         f.style.pointerEvents = "none";
       });
       this.focus(info.wid);
-      if (await this.os.registry.read(`me.endercass.compositor.win.${info.wid}.maximized`)) {
-        this.os.registry.write(`me.endercass.compositor.win.${info.wid}.maximized`, false);
+      if (
+        await this.openv.registry.read(
+          `party.openv.compositor.win.${info.wid}.maximized`,
+        )
+      ) {
+        this.openv.registry.write(
+          `party.openv.compositor.win.${info.wid}.maximized`,
+          false,
+        );
       }
       e.preventDefault();
     });
@@ -490,8 +526,15 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
         f.style.pointerEvents = "none";
       });
       this.focus(info.wid);
-      if (await this.os.registry.read(`me.endercass.compositor.win.${info.wid}.maximized`)) {
-        this.os.registry.write(`me.endercass.compositor.win.${info.wid}.maximized`, false);
+      if (
+        await this.openv.registry.read(
+          `party.openv.compositor.win.${info.wid}.maximized`,
+        )
+      ) {
+        this.openv.registry.write(
+          `party.openv.compositor.win.${info.wid}.maximized`,
+          false,
+        );
       }
       e.preventDefault();
     });
@@ -599,8 +642,8 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
     title.style.padding = "4px";
     title.textContent = info.title;
 
-    this.os.registry.watch(
-      `me.endercass.compositor.win.${info.wid}.title`,
+    this.openv.registry.watch(
+      `party.openv.compositor.win.${info.wid}.title`,
       (value) => {
         if (typeof value !== "string") return;
         info.title = value;
@@ -622,46 +665,68 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
     maximizeButton.style.justifyContent = "center";
     maximizeButton.style.cursor = "pointer";
 
-    let lastSize: { x: number; y: number; width: number; height: number } = { x: info.x, y: info.y, width: info.width, height: info.height };
+    let lastSize: { x: number; y: number; width: number; height: number } = {
+      x: info.x,
+      y: info.y,
+      width: info.width,
+      height: info.height,
+    };
 
     maximizeButton.addEventListener("click", async (e) => {
       e.stopPropagation();
       info.maximized = !info.maximized;
-      await this.os.registry.write(
-        `me.endercass.compositor.win.${info.wid}.maximized`,
+      await this.openv.registry.write(
+        `party.openv.compositor.win.${info.wid}.maximized`,
         info.maximized,
       );
     });
     buttonBox.appendChild(maximizeButton);
 
-    this.os.registry.watch(
-      `me.endercass.compositor.win.${info.wid}.maximized`,
+    this.openv.registry.watch(
+      `party.openv.compositor.win.${info.wid}.maximized`,
       (value) => {
         if (typeof value !== "boolean") return;
         info.maximized = value;
         if (value) {
           // Maximize
-          lastSize = { x: info.x, y: info.y, width: info.width, height: info.height };
-          this.os.registry.write(`me.endercass.compositor.win.${info.wid}.x`, 0);
-          this.os.registry.write(`me.endercass.compositor.win.${info.wid}.y`, 0);
-          this.os.registry.write(
-            `me.endercass.compositor.win.${info.wid}.width`,
+          lastSize = {
+            x: info.x,
+            y: info.y,
+            width: info.width,
+            height: info.height,
+          };
+          this.openv.registry.write(
+            `party.openv.compositor.win.${info.wid}.x`,
+            0,
+          );
+          this.openv.registry.write(
+            `party.openv.compositor.win.${info.wid}.y`,
+            0,
+          );
+          this.openv.registry.write(
+            `party.openv.compositor.win.${info.wid}.width`,
             window.innerWidth,
           );
-          this.os.registry.write(
-            `me.endercass.compositor.win.${info.wid}.height`,
-            window.innerHeight
+          this.openv.registry.write(
+            `party.openv.compositor.win.${info.wid}.height`,
+            window.innerHeight,
           );
         } else {
           // Restore
-          this.os.registry.write(`me.endercass.compositor.win.${info.wid}.x`, lastSize.x);
-          this.os.registry.write(`me.endercass.compositor.win.${info.wid}.y`, lastSize.y);
-          this.os.registry.write(
-            `me.endercass.compositor.win.${info.wid}.width`,
+          this.openv.registry.write(
+            `party.openv.compositor.win.${info.wid}.x`,
+            lastSize.x,
+          );
+          this.openv.registry.write(
+            `party.openv.compositor.win.${info.wid}.y`,
+            lastSize.y,
+          );
+          this.openv.registry.write(
+            `party.openv.compositor.win.${info.wid}.width`,
             lastSize.width,
           );
-          this.os.registry.write(
-            `me.endercass.compositor.win.${info.wid}.height`,
+          this.openv.registry.write(
+            `party.openv.compositor.win.${info.wid}.height`,
             lastSize.height,
           );
         }
@@ -670,15 +735,21 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
 
     addEventListener("resize", () => {
       if (info.maximized) {
-        this.os.registry.write(`me.endercass.compositor.win.${info.wid}.x `, 0);
-        this.os.registry.write(`me.endercass.compositor.win.${info.wid}.y`, 0);
-        this.os.registry.write(
-          `me.endercass.compositor.win.${info.wid}.width`,
+        this.openv.registry.write(
+          `party.openv.compositor.win.${info.wid}.x `,
+          0,
+        );
+        this.openv.registry.write(
+          `party.openv.compositor.win.${info.wid}.y`,
+          0,
+        );
+        this.openv.registry.write(
+          `party.openv.compositor.win.${info.wid}.width`,
           window.innerWidth,
         );
-        this.os.registry.write(
-          `me.endercass.compositor.win.${info.wid}.height`,
-          window.innerHeight
+        this.openv.registry.write(
+          `party.openv.compositor.win.${info.wid}.height`,
+          window.innerHeight,
         );
       }
     });
@@ -707,8 +778,8 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
     contentBox.style.overflow = "hidden";
     win.appendChild(contentBox);
 
-    this.os.registry.watch(
-      `me.endercass.compositor.win.${info.wid}.content`,
+    this.openv.registry.watch(
+      `party.openv.compositor.win.${info.wid}.content`,
       async (value) => {
         if (typeof value !== "object" || value === null || !("type" in value))
           return;
@@ -730,7 +801,9 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
           canvas.height = info.height - titleBar.offsetHeight;
           canvas.style.width = "100%";
           canvas.style.height = "100%";
-          const surfaces = this.os.getAPI<SurfacesApi>("me.endercass.surface");
+          const surfaces = this.openv.getAPI<SurfacesApi>(
+            "party.openv.surface",
+          );
           surfaces.register(info.content.sid, new CanvasSurface(canvas));
           contentBox.appendChild(canvas);
         }
@@ -739,37 +812,39 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
 
     root.appendChild(win);
 
-    this.os.registry.watch(`me.endercass.compositor.windows`, (value) => {
+    this.openv.registry.watch(`party.openv.compositor.windows`, (value) => {
       if (!Array.isArray(value)) return;
       if (!value.includes(info.wid)) {
         root.removeChild(win);
-        this.os.registry.delete(`me.endercass.compositor.win.${info.wid}.wid`);
-        this.os.registry.delete(
-          `me.endercass.compositor.win.${info.wid}.title`,
+        this.openv.registry.delete(
+          `party.openv.compositor.win.${info.wid}.wid`,
         );
-        this.os.registry.delete(`me.endercass.compositor.win.${info.wid}.x`);
-        this.os.registry.delete(`me.endercass.compositor.win.${info.wid}.y`);
-        this.os.registry.delete(`me.endercass.compositor.win.${info.wid}.z`);
-        this.os.registry.delete(
-          `me.endercass.compositor.win.${info.wid}.minwidth`,
+        this.openv.registry.delete(
+          `party.openv.compositor.win.${info.wid}.title`,
         );
-        this.os.registry.delete(
-          `me.endercass.compositor.win.${info.wid}.minheight`,
+        this.openv.registry.delete(`party.openv.compositor.win.${info.wid}.x`);
+        this.openv.registry.delete(`party.openv.compositor.win.${info.wid}.y`);
+        this.openv.registry.delete(`party.openv.compositor.win.${info.wid}.z`);
+        this.openv.registry.delete(
+          `party.openv.compositor.win.${info.wid}.minwidth`,
         );
-        this.os.registry.delete(
-          `me.endercass.compositor.win.${info.wid}.height`,
+        this.openv.registry.delete(
+          `party.openv.compositor.win.${info.wid}.minheight`,
         );
-        this.os.registry.delete(
-          `me.endercass.compositor.win.${info.wid}.width`,
+        this.openv.registry.delete(
+          `party.openv.compositor.win.${info.wid}.height`,
         );
-        this.os.registry.delete(
-          `me.endercass.compositor.win.${info.wid}.class`,
+        this.openv.registry.delete(
+          `party.openv.compositor.win.${info.wid}.width`,
         );
-        this.os.registry.delete(
-          `me.endercass.compositor.win.${info.wid}.resizable`,
+        this.openv.registry.delete(
+          `party.openv.compositor.win.${info.wid}.class`,
         );
-        this.os.registry.delete(
-          `me.endercass.compositor.win.${info.wid}.content`,
+        this.openv.registry.delete(
+          `party.openv.compositor.win.${info.wid}.resizable`,
+        );
+        this.openv.registry.delete(
+          `party.openv.compositor.win.${info.wid}.content`,
         );
       }
     });
@@ -779,10 +854,10 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
     return info;
   }
   async create(info: Partial<WindowData>): Promise<WindowData> {
-    const services = this.os.getAPI<ServiceApi>("me.endercass.service");
+    const services = this.openv.getAPI<ServiceApi>("party.openv.service");
 
-    const displays = (await this.os.registry.read(
-      "me.endercass.compositor.displays",
+    const displays = (await this.openv.registry.read(
+      "party.openv.compositor.displays",
     )) as string[];
 
     if (displays.length === 0) {
@@ -809,41 +884,41 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
   async info(wid: number): Promise<WindowData | null> {
     try {
       const info = {
-        wid: (await this.os.registry.read(
-          `me.endercass.compositor.win.${wid}.wid`,
+        wid: (await this.openv.registry.read(
+          `party.openv.compositor.win.${wid}.wid`,
         )) as number,
-        title: (await this.os.registry.read(
-          `me.endercass.compositor.win.${wid}.title`,
+        title: (await this.openv.registry.read(
+          `party.openv.compositor.win.${wid}.title`,
         )) as string,
-        x: (await this.os.registry.read(
-          `me.endercass.compositor.win.${wid}.x`,
+        x: (await this.openv.registry.read(
+          `party.openv.compositor.win.${wid}.x`,
         )) as number,
-        y: (await this.os.registry.read(
-          `me.endercass.compositor.win.${wid}.y`,
+        y: (await this.openv.registry.read(
+          `party.openv.compositor.win.${wid}.y`,
         )) as number,
-        z: (await this.os.registry.read(
-          `me.endercass.compositor.win.${wid}.z`,
+        z: (await this.openv.registry.read(
+          `party.openv.compositor.win.${wid}.z`,
         )) as number,
-        minwidth: (await this.os.registry.read(
-          `me.endercass.compositor.win.${wid}.minwidth`,
+        minwidth: (await this.openv.registry.read(
+          `party.openv.compositor.win.${wid}.minwidth`,
         )) as number,
-        minheight: (await this.os.registry.read(
-          `me.endercass.compositor.win.${wid}.minheight`,
+        minheight: (await this.openv.registry.read(
+          `party.openv.compositor.win.${wid}.minheight`,
         )) as number,
-        height: (await this.os.registry.read(
-          `me.endercass.compositor.win.${wid}.height`,
+        height: (await this.openv.registry.read(
+          `party.openv.compositor.win.${wid}.height`,
         )) as number,
-        width: (await this.os.registry.read(
-          `me.endercass.compositor.win.${wid}.width`,
+        width: (await this.openv.registry.read(
+          `party.openv.compositor.win.${wid}.width`,
         )) as number,
-        class: (await this.os.registry.read(
-          `me.endercass.compositor.win.${wid}.class`,
+        class: (await this.openv.registry.read(
+          `party.openv.compositor.win.${wid}.class`,
         )) as string,
-        resizable: (await this.os.registry.read(
-          `me.endercass.compositor.win.${wid}.resizable`,
+        resizable: (await this.openv.registry.read(
+          `party.openv.compositor.win.${wid}.resizable`,
         )) as boolean,
-        content: (await this.os.registry.read(
-          `me.endercass.compositor.win.${wid}.content`,
+        content: (await this.openv.registry.read(
+          `party.openv.compositor.win.${wid}.content`,
         )) as WindowContent,
       } as WindowData;
       return info;
@@ -854,22 +929,22 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
   async destroy(wid: number): Promise<void> {
     let wins: number[] = [];
     try {
-      wins = (await this.os.registry.read(
-        "me.endercass.compositor.windows",
+      wins = (await this.openv.registry.read(
+        "party.openv.compositor.windows",
       )) as number[];
-    } catch { }
+    } catch {}
 
     wins = wins.filter((w) => w !== wid);
-    await this.os.registry.write("me.endercass.compositor.windows", wins);
+    await this.openv.registry.write("party.openv.compositor.windows", wins);
   }
 
   async windows(): Promise<number[]> {
     try {
-      return (await this.os.registry.read(
-        "me.endercass.compositor.windows",
+      return (await this.openv.registry.read(
+        "party.openv.compositor.windows",
       )) as number[];
     } catch {
-      await this.os.registry.write("me.endercass.compositor.windows", []);
+      await this.openv.registry.write("party.openv.compositor.windows", []);
       return [];
     }
   }
@@ -878,8 +953,8 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
     const info = await this.info(wid);
     if (!info) throw new Error("Window not found");
 
-    await this.os.registry.write(
-      `me.endercass.compositor.win.${wid}.title`,
+    await this.openv.registry.write(
+      `party.openv.compositor.win.${wid}.title`,
       title,
     );
   }
@@ -893,8 +968,8 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
     const info = await this.info(wid);
     if (!info) throw new Error("Window not found");
 
-    await this.os.registry.write(
-      `me.endercass.compositor.win.${wid}.content`,
+    await this.openv.registry.write(
+      `party.openv.compositor.win.${wid}.content`,
       content,
     );
   }
@@ -912,12 +987,12 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
     const info = await this.info(wid);
     if (!info) throw new Error("Window not found");
 
-    await this.os.registry.write(
-      `me.endercass.compositor.win.${wid}.maxwidth`,
+    await this.openv.registry.write(
+      `party.openv.compositor.win.${wid}.maxwidth`,
       maxwidth,
     );
-    await this.os.registry.write(
-      `me.endercass.compositor.win.${wid}.maxheight`,
+    await this.openv.registry.write(
+      `party.openv.compositor.win.${wid}.maxheight`,
       maxheight,
     );
   }
@@ -927,15 +1002,15 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
     let maxwidth = 1920;
     let maxheight = 1080;
     try {
-      maxwidth = (await this.os.registry.read(
-        `me.endercass.compositor.win.${wid}.maxwidth`,
+      maxwidth = (await this.openv.registry.read(
+        `party.openv.compositor.win.${wid}.maxwidth`,
       )) as number;
-    } catch { }
+    } catch {}
     try {
-      maxheight = (await this.os.registry.read(
-        `me.endercass.compositor.win.${wid}.maxheight`,
+      maxheight = (await this.openv.registry.read(
+        `party.openv.compositor.win.${wid}.maxheight`,
       )) as number;
-    } catch { }
+    } catch {}
     return { maxwidth, maxheight };
   }
 
@@ -943,8 +1018,8 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
     const info = await this.info(wid);
     if (!info) throw new Error("Window not found");
 
-    await this.os.registry.write(
-      `me.endercass.compositor.win.${wid}.resizable`,
+    await this.openv.registry.write(
+      `party.openv.compositor.win.${wid}.resizable`,
       resizable,
     );
   }
@@ -958,8 +1033,8 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
     const info = await this.info(wid);
     if (!info) throw new Error("Window not found");
 
-    await this.os.registry.write(
-      `me.endercass.compositor.win.${wid}.maximized`,
+    await this.openv.registry.write(
+      `party.openv.compositor.win.${wid}.maximized`,
       maximized,
     );
   }
@@ -979,8 +1054,8 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
     const info = await this.info(wid);
     if (!info) throw new Error("Window not found");
 
-    await this.os.registry.write(
-      `me.endercass.compositor.win.${wid}.class`,
+    await this.openv.registry.write(
+      `party.openv.compositor.win.${wid}.class`,
       cls,
     );
   }
@@ -997,12 +1072,12 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
     if (width < info.minwidth) width = info.minwidth;
     if (height < info.minheight) height = info.minheight;
 
-    await this.os.registry.write(
-      `me.endercass.compositor.win.${wid}.width`,
+    await this.openv.registry.write(
+      `party.openv.compositor.win.${wid}.width`,
       width,
     );
-    await this.os.registry.write(
-      `me.endercass.compositor.win.${wid}.height`,
+    await this.openv.registry.write(
+      `party.openv.compositor.win.${wid}.height`,
       height,
     );
   }
@@ -1013,8 +1088,8 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
     if (x < 0) x = 0;
     if (y < 0) y = 0;
 
-    await this.os.registry.write(`me.endercass.compositor.win.${wid}.x`, x);
-    await this.os.registry.write(`me.endercass.compositor.win.${wid}.y`, y);
+    await this.openv.registry.write(`party.openv.compositor.win.${wid}.x`, x);
+    await this.openv.registry.write(`party.openv.compositor.win.${wid}.y`, y);
   }
   async rect(wid: number): Promise<{
     x: number;
@@ -1037,8 +1112,8 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
     if (!info) throw new Error("Window not found");
 
     let maxZ = 0;
-    const wins: number[] = (await this.os.registry.read(
-      "me.endercass.compositor.windows",
+    const wins: number[] = (await this.openv.registry.read(
+      "party.openv.compositor.windows",
     )) as number[];
     for (const w of wins) {
       const winInfo = await this.info(w);
@@ -1046,8 +1121,8 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
         maxZ = winInfo.z;
       }
     }
-    await this.os.registry.write(
-      `me.endercass.compositor.win.${wid}.z`,
+    await this.openv.registry.write(
+      `party.openv.compositor.win.${wid}.z`,
       maxZ + 1,
     );
   }

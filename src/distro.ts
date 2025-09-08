@@ -1,24 +1,24 @@
-import * as OS from "./index.js";
+import * as OE from "./index.js";
 
-async function setup(os: OS.WebOS): Promise<OS.WebOS> {
-  await os.installAPI(new OS.IPCApi());
-  await os.installAPI(new OS.ServiceApi());
-  await os.installAPI(new OS.IdentityApi());
-  await os.installAPI(new OS.ServerApi());
-  await os.installAPI(new OS.ProcessesApi());
-  await os.installAPI(new OS.FsApi());
-  await os.installAPI(new OS.SurfacesApi());
-  await os.installAPI(new OS.ReferenceCompositor());
-  await os.installAPI(new OS.NetApi());
-  await os.installAPI(new OS.ResolveApi());
+async function setup(openv: OE.OpEnv): Promise<OE.OpEnv> {
+  await openv.installAPI(new OE.IPCApi());
+  await openv.installAPI(new OE.ServiceApi());
+  await openv.installAPI(new OE.IdentityApi());
+  await openv.installAPI(new OE.ServerApi());
+  await openv.installAPI(new OE.ProcessesApi());
+  await openv.installAPI(new OE.FsApi());
+  await openv.installAPI(new OE.SurfacesApi());
+  await openv.installAPI(new OE.ReferenceCompositor());
+  await openv.installAPI(new OE.NetApi());
+  await openv.installAPI(new OE.ResolveApi());
 
-  return os;
+  return openv;
 }
 
-async function buildFS(fs: OS.FsApi) {
+async function buildFS(fs: OE.FsApi) {
   await fs.register(
     "rootfs",
-    new OS.LocalFS(await navigator.storage.getDirectory()),
+    new OE.LocalFS(await navigator.storage.getDirectory()),
   );
   await fs.mount("/", "rootfs");
   await fs.makeDir("/");
@@ -26,43 +26,43 @@ async function buildFS(fs: OS.FsApi) {
   await fs.makeDir("/etc");
 }
 
-async function buildNetwork(net: OS.NetApi) {
-  await net.register("loopback", new OS.LoopbackNetBus());
+async function buildNetwork(net: OE.NetApi) {
+  await net.register("loopback", new OE.LoopbackNetBus());
   await net.route("127.0.0.1/8", "loopback");
 }
 
-export async function boot(): Promise<OS.WebOS> {
-  const os = await setup(new OS.WebOS(new OS.IDBRegistry()));
-  await os.getAPI<OS.ServiceApi>("me.endercass.service").clearFunctions();
-  const fs = os.getAPI<OS.FsApi>("me.endercass.fs");
-  const net = os.getAPI<OS.NetApi>("me.endercass.net");
+export async function boot(): Promise<OE.OpEnv> {
+  const openv = await setup(new OE.OpEnv(new OE.IDBRegistry()));
+  await openv.getAPI<OE.ServiceApi>("party.openv.service").clearFunctions();
+  const fs = openv.getAPI<OE.FsApi>("party.openv.fs");
+  const net = openv.getAPI<OE.NetApi>("party.openv.net");
 
   await buildFS(fs);
   await buildNetwork(net);
 
-  const resolver = os.getAPI<OS.ResolveApi>("me.endercass.resolve");
-  await resolver.register("fs", new OS.FsResolver(os));
+  const resolver = openv.getAPI<OE.ResolveApi>("party.openv.resolve");
+  await resolver.register("fs", new OE.FsResolver(openv));
 
-  await os.registry.write("me.endercass.con.current", "1");
-  await os.registry.write(
-    "me.endercass.con.list",
+  await openv.registry.write("party.openv.con.current", "1");
+  await openv.registry.write(
+    "party.openv.con.list",
     [...Array(9).keys()].map((i) => (i + 1).toString()),
   );
 
-  await os.getAPI<OS.ProcessesApi>("me.endercass.processes").start();
-  await os.getAPI<OS.ReferenceCompositor>("me.endercass.compositor").start();
+  await openv.getAPI<OE.ProcessesApi>("party.openv.processes").start();
+  await openv.getAPI<OE.ReferenceCompositor>("party.openv.compositor").start();
 
-  return os;
+  return openv;
 }
 
 export async function connect(
-  channel: OS.RefChannel | string | URL,
-): Promise<OS.WebOS> {
+  channel: OE.RefChannel | string | URL,
+): Promise<OE.OpEnv> {
   if (typeof channel === "string" || channel instanceof URL) {
-    channel = await OS.util.uriToChannel(channel.toString());
+    channel = await OE.util.uriToChannel(channel.toString());
   }
 
-  const os = new OS.WebOS(new OS.ChannelRegistry(channel));
+  const os = new OE.OpEnv(new OE.ChannelRegistry(channel));
 
   return setup(os);
 }

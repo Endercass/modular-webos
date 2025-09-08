@@ -1,7 +1,7 @@
-import * as OS from "/dist/index.js";
+import * as OE from "/dist/index.js";
 import * as Distro from "/dist/distro.js";
-window.OS = OS;
-const os = (window.os = await Distro.connect("sw:///"));
+window.OE = OE;
+const openv = (window.openv = await Distro.connect("sw:///"));
 addEventListener("keydown", (evt) => {
   if (evt.altKey && evt.key.toLowerCase() === "escape") {
     console.log("Caught Alt+Escape, send escape event to root window");
@@ -26,7 +26,7 @@ compositorButton.textContent = "Launch Compsitor";
 compositorButton.addEventListener("click", async () => {
   const root = document.createElement("div");
   document.body.appendChild(root);
-  const compositor = await os.api["me.endercass.compositor"];
+  const compositor = await openv.api["party.openv.compositor"];
   await compositor.join(
     root,
     params.get("name") + "@" + params.get("display"),

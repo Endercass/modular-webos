@@ -1,16 +1,18 @@
 import { type RefChannel, type RefChannelMessage } from "../channel";
+import { OpEnv } from "../openv";
 import { uriToChannel } from "../util";
-import { type WebOS } from "../webos";
 
 export class ServerApi {
-  name = "me.endercass.server";
-  os: WebOS;
+  name = "party.openv.server";
+  openv: OpEnv;
 
-  async populate(os: WebOS): Promise<void> {
-    this.os = os;
+  async populate(openv: OpEnv): Promise<void> {
+    this.openv = openv;
   }
 
-  async serve(channel: RefChannel | string | URL): Promise<{ stop: () => void }> {
+  async serve(
+    channel: RefChannel | string | URL,
+  ): Promise<{ stop: () => void }> {
     if (typeof channel === "string" || channel instanceof URL) {
       channel = await uriToChannel(channel);
     }
@@ -18,24 +20,24 @@ export class ServerApi {
     let stopped = false;
 
     let lastId = 0;
-    this.os.registry.on("write", (key, value) => {
+    this.openv.registry.on("write", (key, value) => {
       if (!stopped) {
         lastId++;
         channel.send({ type: "request.set", key, value, id: lastId });
       }
     });
-    this.os.registry.on("delete", (key) => {
+    this.openv.registry.on("delete", (key) => {
       if (!stopped) {
-      lastId++;
-      channel.send({ type: "request.delete", key, id: lastId });
+        lastId++;
+        channel.send({ type: "request.delete", key, id: lastId });
       }
     });
 
-    let sub = crypto.randomUUID()
+    let sub = crypto.randomUUID();
     channel.subscribe(async (msg: RefChannelMessage) => {
       if (msg.type === "request.get") {
         try {
-          const value = await this.os.registry.read(msg.key);
+          const value = await this.openv.registry.read(msg.key);
           channel.send({
             type: "response.get",
             key: msg.key,
@@ -54,7 +56,7 @@ export class ServerApi {
         }
       } else if (msg.type === "request.set") {
         try {
-          await this.os.registry.write(msg.key, msg.value);
+          await this.openv.registry.write(msg.key, msg.value);
           channel.send({
             type: "response.set",
             success: true,
@@ -73,7 +75,7 @@ export class ServerApi {
         }
       } else if (msg.type === "request.delete") {
         try {
-          await this.os.registry.delete(msg.key);
+          await this.openv.registry.delete(msg.key);
           channel.send({
             type: "response.delete",
             success: true,
@@ -90,7 +92,7 @@ export class ServerApi {
         }
       } else if (msg.type === "request.list") {
         try {
-          const entries = await this.os.registry.entries();
+          const entries = await this.openv.registry.entries();
           channel.send({
             type: "response.list",
             entries,
@@ -106,8 +108,8 @@ export class ServerApi {
     return {
       stop() {
         stopped = true;
-        channel.unsubscribe(sub)
+        channel.unsubscribe(sub);
       },
-    }
+    };
   }
 }

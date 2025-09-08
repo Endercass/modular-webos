@@ -15,7 +15,7 @@ addEventListener("message", async (evt) => {
     } else {
       const q = OS.createListenerQueue();
 
-      await (await getOS()).getAPI("me.endercass.server").serve({
+      await (await getOS()).getAPI("party.openv.server").serve({
         send(msg) {
           evt.source.postMessage(msg);
         },
@@ -49,7 +49,7 @@ addEventListener("fetch", (evt) => {
           try {
             return new Response(
               JSON.stringify({
-                ok: await os.api["me.endercass.fs"].readDir(
+                ok: await openv.api["party.openv.fs"].readDir(
                   url.pathname.slice(3),
                 ),
               }),
@@ -69,7 +69,7 @@ addEventListener("fetch", (evt) => {
         } else {
           try {
             return new Response(
-              await os.api["me.endercass.fs"].readFile(url.pathname.slice(3)),
+              await openv.api["party.openv.fs"].readFile(url.pathname.slice(3)),
             );
           } catch (err) {
             return new Response(JSON.stringify({ err: err.message }), {

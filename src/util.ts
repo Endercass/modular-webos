@@ -1,4 +1,8 @@
-import { createBroadcastRefChannel, winToSwChannel, type RefChannel } from "./channel";
+import {
+  createBroadcastRefChannel,
+  winToSwChannel,
+  type RefChannel,
+} from "./channel";
 
 export async function uriToChannel(uri: string | URL): Promise<RefChannel> {
   if (typeof uri === "string") {
@@ -9,7 +13,7 @@ export async function uriToChannel(uri: string | URL): Promise<RefChannel> {
     return createBroadcastRefChannel(uri.hostname);
   }
   if (uri.protocol === "sw:") {
-    return await winToSwChannel()
+    return await winToSwChannel();
   }
   throw new Error(`Unsupported channel URI: ${uri}`);
 }

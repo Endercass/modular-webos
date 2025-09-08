@@ -1,4 +1,4 @@
-import { WebOS } from "../webos";
+import { OpEnv } from "../openv.ts";
 import { API } from "./api";
 import { ProcessesApi } from "./processes";
 import { ServiceApi } from "./service";
@@ -17,7 +17,7 @@ export interface FsStats {
 }
 
 export interface FsImpl {
-  initialize?(os: WebOS, namespace: string): Promise<void>;
+  initialize?(openv: OpEnv, namespace: string): Promise<void>;
 
   readFile(path: string): Promise<Blob>;
   writeFile(path: string, data: Blob | string): Promise<void>;
@@ -37,19 +37,19 @@ export interface FsImpl {
 }
 
 export class FsApi implements API, FsImpl {
-  name = "me.endercass.fs";
+  name = "party.openv.fs";
 
-  os: WebOS;
+  openv: OpEnv;
 
-  async populate(os: WebOS) {
-    this.os = os;
+  async populate(openv: OpEnv) {
+    this.openv = openv;
   }
 
   async register(namespace: string, impl: FsImpl) {
-    const services = this.os.getAPI<ServiceApi>("me.endercass.service");
+    const services = this.openv.getAPI<ServiceApi>("party.openv.service");
 
     if (impl.initialize) {
-      await impl.initialize(this.os, namespace);
+      await impl.initialize(this.openv, namespace);
     }
 
     services.defineFunction(
@@ -84,26 +84,26 @@ export class FsApi implements API, FsImpl {
   async mount(path: string, namespace: string) {
     let tab: Record<string, string> = {};
     try {
-      tab = await this.os.registry.read(this.name + ".fstab");
-    } catch { }
+      tab = await this.openv.registry.read(this.name + ".fstab");
+    } catch {}
 
     tab[path] = namespace;
 
-    await this.os.registry.write(this.name + ".fstab", tab);
+    await this.openv.registry.write(this.name + ".fstab", tab);
   }
 
   async #relToAbs(path: string): Promise<string> {
     if (path.startsWith("/")) return path;
     if (path.startsWith("./")) path = path.slice(2);
 
-    const processes = this.os.getAPI<ProcessesApi>("me.endercass.processes");
+    const processes = this.openv.getAPI<ProcessesApi>("party.openv.processes");
     return (await processes.getCwd()) + "/" + path;
   }
 
   async #processPath(path: string): Promise<[string, string]> {
     path = await this.#relToAbs(path);
 
-    const tab = await this.os.registry.read(this.name + ".fstab");
+    const tab = await this.openv.registry.read(this.name + ".fstab");
 
     if (path in tab) return [tab[path], "/"];
 
@@ -115,7 +115,7 @@ export class FsApi implements API, FsImpl {
   }
 
   async readFile(path: string): Promise<Blob> {
-    const services = this.os.getAPI<ServiceApi>("me.endercass.service");
+    const services = this.openv.getAPI<ServiceApi>("party.openv.service");
     const [impl, local] = await this.#processPath(path);
 
     return services.callFunction("readFile", [local], impl, {
@@ -123,7 +123,7 @@ export class FsApi implements API, FsImpl {
     }) as Promise<Blob>;
   }
   async writeFile(path: string, data: Blob): Promise<void> {
-    const services = this.os.getAPI<ServiceApi>("me.endercass.service");
+    const services = this.openv.getAPI<ServiceApi>("party.openv.service");
     const [impl, local] = await this.#processPath(path);
 
     await services.callFunction("writeFile", [local, data], impl, {
@@ -132,7 +132,7 @@ export class FsApi implements API, FsImpl {
     return;
   }
   async unlink(path: string): Promise<void> {
-    const services = this.os.getAPI<ServiceApi>("me.endercass.service");
+    const services = this.openv.getAPI<ServiceApi>("party.openv.service");
     const [impl, local] = await this.#processPath(path);
 
     await services.callFunction("unlink", [local], impl, {
@@ -142,7 +142,7 @@ export class FsApi implements API, FsImpl {
   }
 
   async readDir(path: string): Promise<string[]> {
-    const services = this.os.getAPI<ServiceApi>("me.endercass.service");
+    const services = this.openv.getAPI<ServiceApi>("party.openv.service");
     const [impl, local] = await this.#processPath(path);
 
     return services.callFunction("readDir", [local], impl, {
@@ -150,7 +150,7 @@ export class FsApi implements API, FsImpl {
     }) as Promise<string[]>;
   }
   async makeDir(path: string): Promise<void> {
-    const services = this.os.getAPI<ServiceApi>("me.endercass.service");
+    const services = this.openv.getAPI<ServiceApi>("party.openv.service");
     const [impl, local] = await this.#processPath(path);
 
     await services.callFunction("makeDir", [local], impl, {
@@ -159,7 +159,7 @@ export class FsApi implements API, FsImpl {
     return;
   }
   async rmDir(path: string): Promise<void> {
-    const services = this.os.getAPI<ServiceApi>("me.endercass.service");
+    const services = this.openv.getAPI<ServiceApi>("party.openv.service");
     const [impl, local] = await this.#processPath(path);
 
     await services.callFunction("rmDir", [local], impl, {
@@ -169,7 +169,7 @@ export class FsApi implements API, FsImpl {
   }
 
   async symlink(target: string, path: string): Promise<void> {
-    const services = this.os.getAPI<ServiceApi>("me.endercass.service");
+    const services = this.openv.getAPI<ServiceApi>("party.openv.service");
     const [impl, local] = await this.#processPath(path);
 
     await services.callFunction("symlink", [target, local], impl, {
@@ -178,7 +178,7 @@ export class FsApi implements API, FsImpl {
     return;
   }
   async readlink(path: string): Promise<string> {
-    const services = this.os.getAPI<ServiceApi>("me.endercass.service");
+    const services = this.openv.getAPI<ServiceApi>("party.openv.service");
     const [impl, local] = await this.#processPath(path);
     return services.callFunction("readlink", [local], impl, {
       root: this.name + ".impl",
@@ -186,7 +186,7 @@ export class FsApi implements API, FsImpl {
   }
 
   async rename(oldPath: string, newPath: string): Promise<void> {
-    const services = this.os.getAPI<ServiceApi>("me.endercass.service");
+    const services = this.openv.getAPI<ServiceApi>("party.openv.service");
     const [implOld, localOld] = await this.#processPath(oldPath);
     const [implNew, localNew] = await this.#processPath(newPath);
 
@@ -200,7 +200,7 @@ export class FsApi implements API, FsImpl {
     return;
   }
   async chown(path: string, uid: number, gid = uid): Promise<void> {
-    const services = this.os.getAPI<ServiceApi>("me.endercass.service");
+    const services = this.openv.getAPI<ServiceApi>("party.openv.service");
     const [impl, local] = await this.#processPath(path);
 
     await services.callFunction("chown", [local, uid, gid], impl, {
@@ -209,7 +209,7 @@ export class FsApi implements API, FsImpl {
     return;
   }
   async chmod(path: string, mode: number): Promise<void> {
-    const services = this.os.getAPI<ServiceApi>("me.endercass.service");
+    const services = this.openv.getAPI<ServiceApi>("party.openv.service");
     const [impl, local] = await this.#processPath(path);
     await services.callFunction("chmod", [local, mode], impl, {
       root: this.name + ".impl",
@@ -217,7 +217,7 @@ export class FsApi implements API, FsImpl {
     return;
   }
   async stat(path: string): Promise<FsStats> {
-    const services = this.os.getAPI<ServiceApi>("me.endercass.service");
+    const services = this.openv.getAPI<ServiceApi>("party.openv.service");
     const [impl, local] = await this.#processPath(path);
 
     return services.callFunction("stat", [local], impl, {
@@ -229,10 +229,12 @@ export class FsApi implements API, FsImpl {
     try {
       await this.stat(path);
       return path;
-    } catch { }
+    } catch {}
 
     if (!cwd) {
-      const processes = this.os.getAPI<ProcessesApi>("me.endercass.processes");
+      const processes = this.openv.getAPI<ProcessesApi>(
+        "party.openv.processes",
+      );
       // Try to get CWD. This will only work if called inside a process (global env.PID is set)
       cwd = await processes.getCwd();
     }
@@ -260,13 +262,13 @@ export class FsApi implements API, FsImpl {
 }
 
 export class LocalFS implements FsImpl {
-  constructor(public dirHandle: FileSystemDirectoryHandle) { }
+  constructor(public dirHandle: FileSystemDirectoryHandle) {}
 
-  os: WebOS;
+  openv: OpEnv;
   namespace: string;
 
-  async initialize(os: WebOS, namespace: string): Promise<void> {
-    this.os = os;
+  async initialize(openv: OpEnv, namespace: string): Promise<void> {
+    this.openv = openv;
     this.namespace = namespace;
   }
 
@@ -328,10 +330,10 @@ export class LocalFS implements FsImpl {
     const now = Date.now();
     stats.mtime = now;
     stats.atime = now;
-    await this.os.registry.write(
+    await this.openv.registry.write(
       this.namespace +
-      ".stats." +
-      path.replace(/\/+$/, "").replaceAll("/", "."),
+        ".stats." +
+        path.replace(/\/+$/, "").replaceAll("/", "."),
       stats as any,
     );
   }
@@ -340,12 +342,12 @@ export class LocalFS implements FsImpl {
     await dir.removeEntry(fileName);
 
     try {
-      await this.os.registry.delete(
+      await this.openv.registry.delete(
         this.namespace +
-        ".stats." +
-        path.replace(/\/+$/, "").replaceAll("/", "."),
+          ".stats." +
+          path.replace(/\/+$/, "").replaceAll("/", "."),
       );
-    } catch { }
+    } catch {}
   }
 
   async readDir(path: string): Promise<string[]> {
@@ -383,10 +385,10 @@ export class LocalFS implements FsImpl {
       const now = Date.now();
       stats.mtime = now;
       stats.atime = now;
-      await this.os.registry.write(
+      await this.openv.registry.write(
         this.namespace +
-        ".stats." +
-        path.replace(/\/+$/, "").replaceAll("/", "."),
+          ".stats." +
+          path.replace(/\/+$/, "").replaceAll("/", "."),
         stats as any,
       );
     }
@@ -396,12 +398,12 @@ export class LocalFS implements FsImpl {
     await dir.removeEntry(dirName, { recursive: false });
 
     try {
-      await this.os.registry.delete(
+      await this.openv.registry.delete(
         this.namespace +
-        ".stats." +
-        path.replace(/\/+$/, "").replaceAll("/", "."),
+          ".stats." +
+          path.replace(/\/+$/, "").replaceAll("/", "."),
       );
-    } catch { }
+    } catch {}
   }
 
   async symlink(target: string, path: string): Promise<void> {
@@ -420,18 +422,18 @@ export class LocalFS implements FsImpl {
 
     try {
       const stats = await this.stat(oldPath);
-      await this.os.registry.write(
+      await this.openv.registry.write(
         this.namespace +
-        ".stats." +
-        newPath.replace(/\/+$/, "").replaceAll("/", "."),
+          ".stats." +
+          newPath.replace(/\/+$/, "").replaceAll("/", "."),
         stats as any,
       );
-      await this.os.registry.delete(
+      await this.openv.registry.delete(
         this.namespace +
-        ".stats." +
-        oldPath.replace(/\/+$/, "").replaceAll("/", "."),
+          ".stats." +
+          oldPath.replace(/\/+$/, "").replaceAll("/", "."),
       );
-    } catch { }
+    } catch {}
   }
   async chown(path: string, uid: number, gid = uid): Promise<void> {
     let stats: FsStats;
@@ -442,10 +444,10 @@ export class LocalFS implements FsImpl {
     }
     stats.uid = uid;
     stats.gid = gid;
-    await this.os.registry.write(
+    await this.openv.registry.write(
       this.namespace +
-      ".stats." +
-      path.replace(/\/+$/, "").replaceAll("/", "."),
+        ".stats." +
+        path.replace(/\/+$/, "").replaceAll("/", "."),
       stats as any,
     );
   }
@@ -457,20 +459,20 @@ export class LocalFS implements FsImpl {
       throw new Error("No entry exists at path: " + path);
     }
     stats.mode = mode;
-    await this.os.registry.write(
+    await this.openv.registry.write(
       this.namespace +
-      ".stats." +
-      path.replace(/\/+$/, "").replaceAll("/", "."),
+        ".stats." +
+        path.replace(/\/+$/, "").replaceAll("/", "."),
       stats as any,
     );
   }
   async stat(path: string): Promise<FsStats> {
     let stats: FsStats;
     try {
-      stats = await this.os.registry.read(
+      stats = await this.openv.registry.read(
         this.namespace +
-        ".stats." +
-        path.replace(/\/+$/, "").replaceAll("/", "."),
+          ".stats." +
+          path.replace(/\/+$/, "").replaceAll("/", "."),
       );
     } catch {
       throw new Error("No entry exists at path: " + path);

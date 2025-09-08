@@ -1,7 +1,7 @@
 import { type API } from "./apis/api.ts";
 import { type Registry } from "./registry.ts";
 
-export class WebOS {
+export class OpEnv {
   #reg: Registry;
   api: {
     [key: string]: API;

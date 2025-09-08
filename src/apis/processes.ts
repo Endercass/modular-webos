@@ -1,28 +1,28 @@
 import { createListenerQueue } from "../channel";
 import { RegistryValue } from "../registry";
-import { type WebOS } from "../webos";
+import { type OpEnv } from "../openv";
 import { type API } from "./api";
 import { ServerApi } from "./server";
 import { ServiceApi } from "./service";
 
 export class ProcessesApi implements API {
-  name = "me.endercass.processes";
-  os: WebOS;
+  name = "party.openv.processes";
+  openv: OpEnv;
 
   async newPid(options: { root?: string } = {}): Promise<number> {
     options.root ??= this.name;
     let pid = 0;
     try {
-      pid = (await this.os.registry.read(`${options.root}.lastPid`)) + 1;
+      pid = (await this.openv.registry.read(`${options.root}.lastPid`)) + 1;
     } catch {}
 
-    await this.os.registry.write(`${options.root}.lastPid`, pid);
+    await this.openv.registry.write(`${options.root}.lastPid`, pid);
 
     return pid;
   }
 
-  async populate(os: WebOS) {
-    this.os = os;
+  async populate(openv: OpEnv): Promise<void> {
+    this.openv = openv;
   }
 
   async execute(
@@ -34,7 +34,7 @@ export class ProcessesApi implements API {
   ): Promise<number> {
     options.root ??= this.name;
 
-    const services = this.os.getAPI<ServiceApi>("me.endercass.service");
+    const services = this.openv.getAPI<ServiceApi>("party.openv.service");
 
     let res = await services.callFunction(
       typeof id !== "undefined" ? `execute$${id}` : "execute",
@@ -54,18 +54,18 @@ export class ProcessesApi implements API {
   async start() {
     let lastPid = 0;
     try {
-      lastPid = await this.os.registry.read(`${this.name}.lastPid`);
+      lastPid = await this.openv.registry.read(`${this.name}.lastPid`);
     } catch {}
     for (let i = 0; i <= lastPid; i++) {
       try {
-        await this.os.registry.delete(`${this.name}.${i}.args`);
-        await this.os.registry.delete(`${this.name}.${i}.cwd`);
-        await this.os.registry.delete(`${this.name}.${i}.pid`);
+        await this.openv.registry.delete(`${this.name}.${i}.args`);
+        await this.openv.registry.delete(`${this.name}.${i}.cwd`);
+        await this.openv.registry.delete(`${this.name}.${i}.pid`);
       } catch {}
     }
 
-    await this.os.registry.write(`${this.name}.lastPid`, 0);
-    const services = this.os.getAPI<ServiceApi>("me.endercass.service");
+    await this.openv.registry.write(`${this.name}.lastPid`, 0);
+    const services = this.openv.getAPI<ServiceApi>("party.openv.service");
 
     await services.clearFunctions("default", {
       root: this.name + ".function",
@@ -80,7 +80,7 @@ export class ProcessesApi implements API {
   ) {
     options.root ??= this.name;
 
-    const services = this.os.getAPI<ServiceApi>("me.endercass.service");
+    const services = this.openv.getAPI<ServiceApi>("party.openv.service");
     await services.defineAnycastFunction(
       "execute",
       id,
@@ -96,8 +96,8 @@ export class ProcessesApi implements API {
         }
         const pid = await this.newPid();
 
-        await this.os.registry.write(`${options.root}.${pid}.pid`, pid);
-        await this.os.registry.write(`${options.root}.${pid}.args`, args);
+        await this.openv.registry.write(`${options.root}.${pid}.pid`, pid);
+        await this.openv.registry.write(`${options.root}.${pid}.args`, args);
 
         let procContainer = document.getElementById("procs");
         if (!procContainer) {
@@ -118,7 +118,7 @@ export class ProcessesApi implements API {
             q.push(evt.data.msg);
         });
 
-        const server = this.os.getAPI<ServerApi>("me.endercass.server");
+        const server = this.openv.getAPI<ServerApi>("party.openv.server");
         const { stop } = await server.serve({
           send(msg) {
             box.contentWindow!.postMessage(
@@ -177,9 +177,9 @@ export class ProcessesApi implements API {
 
     let cwd: string = "/";
     try {
-      cwd = await this.os.registry.read(`${options.root}.${pid}.cwd`);
+      cwd = await this.openv.registry.read(`${options.root}.${pid}.cwd`);
     } catch {
-      await this.os.registry.write(`${options.root}.${pid}.cwd`, cwd);
+      await this.openv.registry.write(`${options.root}.${pid}.cwd`, cwd);
     }
 
     return cwd;
@@ -199,6 +199,6 @@ export class ProcessesApi implements API {
       pid = (window.env as any).PID;
     }
 
-    return await this.os.registry.read(`${options.root}.${pid}.args`);
+    return await this.openv.registry.read(`${options.root}.${pid}.args`);
   }
 }
