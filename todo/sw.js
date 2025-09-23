@@ -49,7 +49,7 @@ addEventListener("fetch", (evt) => {
           try {
             return new Response(
               JSON.stringify({
-                ok: await openv.api["party.openv.fs"].readDir(
+                ok: await openv.api["party.openv.fs"].readdir(
                   url.pathname.slice(3),
                 ),
               }),

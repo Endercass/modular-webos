@@ -22,9 +22,9 @@ export interface FsImpl {
   writeFile(path: string, data: Blob | string): Promise<void>;
   unlink(path: string): Promise<void>;
 
-  readDir(path: string): Promise<string[]>;
-  makeDir(path: string, recursive?: boolean): Promise<void>;
-  rmDir(path: string): Promise<void>;
+  readdir(path: string): Promise<string[]>;
+  mkdir(path: string, recursive?: boolean): Promise<void>;
+  rmdir(path: string): Promise<void>;
 
   symlink(target: string, path: string): Promise<void>;
   readlink(path: string): Promise<string>;
@@ -116,13 +116,13 @@ export class TempFS implements FsImpl {
     this.ents.delete(path);
   }
 
-  async readDir(path: string): Promise<string[]> {
+  async readdir(path: string): Promise<string[]> {
     const ent = this.#getEnt(path);
     if (ent.stats.type !== "DIRECTORY")
       throw new Error("Not a directory: " + path);
     return Array.from((ent as any).entries);
   }
-  async makeDir(path: string, recursive = false): Promise<void> {
+  async mkdir(path: string, recursive = false): Promise<void> {
     const now = Date.now();
     let ent = this.ents.get(path);
     if (ent) throw new Error("File exists: " + path);
@@ -133,7 +133,7 @@ export class TempFS implements FsImpl {
     let dir = this.ents.get(dirPath);
     if (!dir) {
       if (recursive) {
-        await this.makeDir(dirPath, true);
+        await this.mkdir(dirPath, true);
         dir = this.ents.get(dirPath);
       } else {
         throw new Error("No such file or directory: " + dirPath);
@@ -161,7 +161,7 @@ export class TempFS implements FsImpl {
     };
     this.ents.set(path, ent);
   }
-  async rmDir(path: string): Promise<void> {
+  async rmdir(path: string): Promise<void> {
     const ent = this.#getEnt(path);
     if (ent.stats.type !== "DIRECTORY")
       throw new Error("Not a directory: " + path);
@@ -221,8 +221,8 @@ export default class FsApi implements API, FsImpl {
       { root: this.name + ".impl" },
     );
     services.defineFunction(
-      "readDir",
-      impl.readDir.bind(impl) as any,
+      "readdir",
+      impl.readdir.bind(impl) as any,
       namespace,
       { root: this.name + ".impl" },
     );
@@ -232,12 +232,9 @@ export default class FsApi implements API, FsImpl {
       namespace,
       { root: this.name + ".impl" },
     );
-    services.defineFunction(
-      "makeDir",
-      impl.makeDir.bind(impl) as any,
-      namespace,
-      { root: this.name + ".impl" },
-    );
+    services.defineFunction("mkdir", impl.mkdir.bind(impl) as any, namespace, {
+      root: this.name + ".impl",
+    });
     services.defineFunction("stat", impl.stat.bind(impl) as any, namespace, {
       root: this.name + ".impl",
     });
@@ -303,28 +300,28 @@ export default class FsApi implements API, FsImpl {
     return;
   }
 
-  async readDir(path: string): Promise<string[]> {
+  async readdir(path: string): Promise<string[]> {
     const services = this.openv.getAPI<ServiceApi>("party.openv.service");
     const [impl, local] = await this.#processPath(path);
 
-    return services.callFunction("readDir", [local], impl, {
+    return services.callFunction("readdir", [local], impl, {
       root: this.name + ".impl",
     }) as Promise<string[]>;
   }
-  async makeDir(path: string, recursive: boolean = false): Promise<void> {
+  async mkdir(path: string, recursive: boolean = false): Promise<void> {
     const services = this.openv.getAPI<ServiceApi>("party.openv.service");
     const [impl, local] = await this.#processPath(path);
 
-    await services.callFunction("makeDir", [local, recursive], impl, {
+    await services.callFunction("mkdir", [local, recursive], impl, {
       root: this.name + ".impl",
     });
     return;
   }
-  async rmDir(path: string): Promise<void> {
+  async rmdir(path: string): Promise<void> {
     const services = this.openv.getAPI<ServiceApi>("party.openv.service");
     const [impl, local] = await this.#processPath(path);
 
-    await services.callFunction("rmDir", [local], impl, {
+    await services.callFunction("rmdir", [local], impl, {
       root: this.name + ".impl",
     });
     return;

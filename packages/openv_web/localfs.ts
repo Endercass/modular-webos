@@ -15,22 +15,31 @@ export class LocalFS implements FsImpl {
   async #pathToDirHandle(
     path: string,
     create: boolean = false,
-  ): Promise<[FileSystemDirectoryHandle, string]> {
-    const parts = path.replace(/^\/+|\/+$/g, "").split("/");
-    let dir = this.dirHandle;
-
-    for (let i = 0; i < parts.length - 1; i++) {
-      dir = await dir.getDirectoryHandle(parts[i], { create });
+  ): Promise<FileSystemDirectoryHandle> {
+    if (path.startsWith("/")) {
+      path = path.slice(1);
     }
-
-    return [dir, parts[parts.length - 1]];
+    const parts = path.split("/").filter((p) => p.length > 0);
+    let dir: FileSystemDirectoryHandle = this.dirHandle;
+    for (let i = 0; i < parts.length; i++) {
+      dir = await dir.getDirectoryHandle(parts[i], {
+        create: create && i === parts.length - 1,
+      });
+    }
+    return dir;
   }
 
   async #pathToFileHandle(
     path: string,
     create: boolean = false,
   ): Promise<FileSystemFileHandle> {
-    const [dir, fileName] = await this.#pathToDirHandle(path, create);
+    const parentPath = path.split("/").slice(0, -1).join("/");
+    const fileName = path.split("/").pop();
+    if (!fileName) {
+      throw new Error("Invalid file path: " + path);
+    }
+    console.log("Getting file handle for", path, "in", parentPath);
+    const dir = await this.#pathToDirHandle(parentPath, create);
     return await dir.getFileHandle(fileName, { create });
   }
 
@@ -70,38 +79,64 @@ export class LocalFS implements FsImpl {
     const now = Date.now();
     stats.mtime = now;
     stats.atime = now;
-    await this.openv.registry.write(
-      this.namespace +
-        ".stats." +
-        path.replace(/\/+$/, "").replaceAll("/", "."),
-      stats as any,
-    );
+    await this.openv.registry.write(this.#serializePath(path), stats as any);
   }
-  async unlink(path: string): Promise<void> {
-    const [dir, fileName] = await this.#pathToDirHandle(path);
-    await dir.removeEntry(fileName);
 
+  async unlink(path: string): Promise<void> {
+    const parentPath = path.split("/").slice(0, -1).join("/");
+    const fileName = path.split("/").pop();
+    if (!fileName) {
+      throw new Error("Invalid file path: " + path);
+    }
+    const dir = await this.#pathToDirHandle(parentPath);
+    await dir.removeEntry(fileName, { recursive: false });
     try {
-      await this.openv.registry.delete(
-        this.namespace +
-          ".stats." +
-          path.replace(/\/+$/, "").replaceAll("/", "."),
-      );
+      await this.openv.registry.delete(this.#serializePath(path));
     } catch {}
   }
 
-  async readDir(path: string): Promise<string[]> {
+  async readdir(path: string): Promise<string[]> {
     const dirHandle =
-      path === "/" ? this.dirHandle : (await this.#pathToDirHandle(path))[0];
+      path === "/" ? this.dirHandle : await this.#pathToDirHandle(path);
     const entries: string[] = [];
     for await (const entry of dirHandle.values()) {
       entries.push(entry.name + (entry.kind === "directory" ? "/" : ""));
     }
     return entries;
   }
-  async makeDir(path: string, recursive: boolean = false): Promise<void> {
-    await this.#pathToDirHandle(path, true);
 
+  #serializePath(path: string): string {
+    let ser = this.namespace + ".stats.";
+    if (path.startsWith("/")) {
+      path = path.slice(1);
+    }
+    for (const part of path.split("/")) {
+      // encode as base64, but replace lowercase letters with a${letter} and uppercase with b${lowercase letter}, then replace slash with a- and plus with b-
+      ser +=
+        btoa(part)
+          .replace("=", "")
+          .split("")
+          .map((c) => {
+            if (c >= "a" && c <= "z") {
+              return "a" + c;
+            } else if (c >= "A" && c <= "Z") {
+              return "b" + c.toLowerCase();
+            } else if (c === "/") {
+              return "a-";
+            } else if (c === "+") {
+              return "b-";
+            } else if (c === "=") {
+              return "c-";
+            } else {
+              return c;
+            }
+          })
+          .join("") + ".";
+    }
+    return ser.replace(/\.+$/, "");
+  }
+
+  async mkdir(path: string, recursive: boolean = false): Promise<void> {
     let stats: FsStats;
     try {
       stats = await this.stat(path);
@@ -122,27 +157,27 @@ export class LocalFS implements FsImpl {
         mode: 0o777,
         dev: this.namespace,
       };
-      const now = Date.now();
-      stats.mtime = now;
-      stats.atime = now;
-      await this.openv.registry.write(
-        this.namespace +
-          ".stats." +
-          path.replace(/\/+$/, "").replaceAll("/", "."),
-        stats as any,
-      );
     }
+    const now = Date.now();
+    stats.mtime = now;
+    stats.atime = now;
+    await this.openv.registry.write(this.#serializePath(path), stats as any);
+    await this.#pathToDirHandle(path, true);
   }
-  async rmDir(path: string): Promise<void> {
-    const [dir, dirName] = await this.#pathToDirHandle(path);
-    await dir.removeEntry(dirName, { recursive: false });
-
+  async rmdir(path: string): Promise<void> {
+    const dirHandle = await this.#pathToDirHandle(path);
+    for await (const _ of dirHandle.values()) {
+      throw new Error("Directory is not empty: " + path);
+    }
+    const parentPath = path.split("/").slice(0, -1).join("/");
+    const dirName = path.split("/").pop();
+    if (!dirName) {
+      throw new Error("Invalid directory path: " + path);
+    }
+    const parentDir = await this.#pathToDirHandle(parentPath);
+    await parentDir.removeEntry(dirName, { recursive: false });
     try {
-      await this.openv.registry.delete(
-        this.namespace +
-          ".stats." +
-          path.replace(/\/+$/, "").replaceAll("/", "."),
-      );
+      await this.openv.registry.delete(this.#serializePath(path));
     } catch {}
   }
 
@@ -163,16 +198,10 @@ export class LocalFS implements FsImpl {
     try {
       const stats = await this.stat(oldPath);
       await this.openv.registry.write(
-        this.namespace +
-          ".stats." +
-          newPath.replace(/\/+$/, "").replaceAll("/", "."),
+        this.#serializePath(newPath),
         stats as any,
       );
-      await this.openv.registry.delete(
-        this.namespace +
-          ".stats." +
-          oldPath.replace(/\/+$/, "").replaceAll("/", "."),
-      );
+      await this.openv.registry.delete(this.#serializePath(oldPath));
     } catch {}
   }
   async chown(path: string, uid: number, gid = uid): Promise<void> {
@@ -184,12 +213,7 @@ export class LocalFS implements FsImpl {
     }
     stats.uid = uid;
     stats.gid = gid;
-    await this.openv.registry.write(
-      this.namespace +
-        ".stats." +
-        path.replace(/\/+$/, "").replaceAll("/", "."),
-      stats as any,
-    );
+    await this.openv.registry.write(this.#serializePath(path), stats as any);
   }
   async chmod(path: string, mode: number): Promise<void> {
     let stats: FsStats;
@@ -199,21 +223,12 @@ export class LocalFS implements FsImpl {
       throw new Error("No entry exists at path: " + path);
     }
     stats.mode = mode;
-    await this.openv.registry.write(
-      this.namespace +
-        ".stats." +
-        path.replace(/\/+$/, "").replaceAll("/", "."),
-      stats as any,
-    );
+    await this.openv.registry.write(this.#serializePath(path), stats as any);
   }
   async stat(path: string): Promise<FsStats> {
     let stats: FsStats;
     try {
-      stats = await this.openv.registry.read(
-        this.namespace +
-          ".stats." +
-          path.replace(/\/+$/, "").replaceAll("/", "."),
-      );
+      stats = await this.openv.registry.read(this.#serializePath(path));
     } catch {
       throw new Error("No entry exists at path: " + path);
     }

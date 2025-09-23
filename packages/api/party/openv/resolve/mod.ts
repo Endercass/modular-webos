@@ -60,7 +60,7 @@ export class ApiResolver implements Resolver {
       "party.openv.resolve",
     );
     try {
-      await this.fs.makeDir(this.apiDir, true);
+      await this.fs.mkdir(this.apiDir, true);
     } catch (err) {
       console.error(
         `Failed to create API cache directory at ${this.apiDir}:`,
@@ -173,7 +173,7 @@ export class ApiResolver implements Resolver {
         console.log(
           `Cached API "${apiString}" to local fs at ${this.apiDir}/${apiString}.${options.version}.js`,
         );
-        console.log(`dir listing:`, await this.fs.readDir(this.apiDir));
+        console.log(`dir listing:`, await this.fs.readdir(this.apiDir));
 
         return await this.fs.resolve(
           `${apiString}.${options.version}.js`,

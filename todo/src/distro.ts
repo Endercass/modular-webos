@@ -21,9 +21,9 @@ async function buildFS(fs: OE.FsApi) {
     new OE.LocalFS(await navigator.storage.getDirectory()),
   );
   await fs.mount("/", "rootfs");
-  await fs.makeDir("/");
-  await fs.makeDir("/bin");
-  await fs.makeDir("/etc");
+  await fs.mkdir("/");
+  await fs.mkdir("/bin");
+  await fs.mkdir("/etc");
 }
 
 async function buildNetwork(net: OE.NetApi) {
