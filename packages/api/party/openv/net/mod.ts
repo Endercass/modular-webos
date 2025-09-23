@@ -208,8 +208,8 @@ export default class NetApi implements API, DuplexNetBus {
           root: this.name + ".bus",
         });
       },
-      close: async () => { },
-      abort: async () => { },
+      close: async () => {},
+      abort: async () => {},
     });
   }
 

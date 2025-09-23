@@ -6,8 +6,9 @@
     "structure": "bash structure.sh $npm_package_version party.openv.compositor party.openv.fs party.openv.identity party.openv.ipc party.openv.net party.openv.processes party.openv.resolve party.openv.server party.openv.service party.openv.surface"
   },
   "devDependencies": {
-    "@types/node": "^24.3.1",
-    "esbuild": "^0.25.8"
+    "@types/node": "^24.5.2",
+    "esbuild": "^0.25.10",
+    "typescript": "^5.9.2"
   },
   "dependencies": {
     "isolated-vm": "^6.0.1"

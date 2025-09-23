@@ -1,4 +1,4 @@
-import { type OpEnv } from "../openv.ts";
+import { type OpEnv } from "./openv.ts";
 
 export interface API {
   name: string;

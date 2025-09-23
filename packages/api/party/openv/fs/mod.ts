@@ -36,7 +36,10 @@ export interface FsImpl {
 }
 
 export class TempFS implements FsImpl {
-  ents: Map<string, { stats: FsStats } & ({ data: Blob } | { entries: Set<string> })> = new Map();
+  ents: Map<
+    string,
+    { stats: FsStats } & ({ data: Blob } | { entries: Set<string> })
+  > = new Map();
 
   async initialize(openv: OpEnv) {
     this.ents.set("/", {
@@ -115,7 +118,8 @@ export class TempFS implements FsImpl {
 
   async readDir(path: string): Promise<string[]> {
     const ent = this.#getEnt(path);
-    if (ent.stats.type !== "DIRECTORY") throw new Error("Not a directory: " + path);
+    if (ent.stats.type !== "DIRECTORY")
+      throw new Error("Not a directory: " + path);
     return Array.from((ent as any).entries);
   }
   async makeDir(path: string, recursive = false): Promise<void> {
@@ -159,7 +163,8 @@ export class TempFS implements FsImpl {
   }
   async rmDir(path: string): Promise<void> {
     const ent = this.#getEnt(path);
-    if (ent.stats.type !== "DIRECTORY") throw new Error("Not a directory: " + path);
+    if (ent.stats.type !== "DIRECTORY")
+      throw new Error("Not a directory: " + path);
     if ((ent as any).entries.size > 0) {
       throw new Error("Directory not empty: " + path);
     }
@@ -242,7 +247,7 @@ export default class FsApi implements API, FsImpl {
     let tab: Record<string, string> = {};
     try {
       tab = await this.openv.registry.read(this.name + ".fstab");
-    } catch { }
+    } catch {}
 
     tab[path] = namespace;
 
@@ -387,14 +392,16 @@ export default class FsApi implements API, FsImpl {
       console.log("Trying absolute path:", path);
       await this.stat(path);
       return path;
-    } catch { }
+    } catch {}
 
     if (!cwd) {
       const processes = this.openv.getAPI<ProcessesApi>(
         "party.openv.processes",
       );
       // Try to get CWD. This will only work if called inside a process (global env.PID is set)
-      console.log("Calling getCwd to determine CWD. This will fail if executed in the runtime");
+      console.log(
+        "Calling getCwd to determine CWD. This will fail if executed in the runtime",
+      );
       cwd = await processes.getCwd();
     }
 

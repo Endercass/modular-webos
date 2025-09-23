@@ -36,7 +36,7 @@ export default require('./isolated_vm.node').ivm;`,
         loader: "js",
       };
     });
-  }
+  },
 };
 
 console.log("Building...");
@@ -70,9 +70,7 @@ await Promise.all([
       format: "esm",
       outfile: "./dist/openv_node.bundle.js",
       external: ["./isolated_vm", "node:module", "node:fs/promises"],
-      plugins: [
-        ivmplugin,
-      ],
+      plugins: [ivmplugin],
     })
     .then(resultPrinter("openv_node")),
   // all apis
@@ -96,7 +94,23 @@ import { fileURLToPath } from "url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 await copyFile(
   __dirname + "/node_modules/isolated-vm/out/isolated_vm.node",
-  __dirname + "/dist/isolated_vm.node"
+  __dirname + "/dist/isolated_vm.node",
 );
 
-console.log("Built all targets.");
+console.log("Built all targets, generating types...");
+
+import { exec } from "child_process";
+exec(__dirname + "/decls.sh", (error, stdout, stderr) => {
+  if (error) {
+    console.error(`Error generating types: ${error.message}`);
+    return;
+  }
+  if (stderr) {
+    console.error(`Error generating types: ${stderr}`);
+    return;
+  }
+  if (stdout) {
+    console.log(`Types generation output: ${stdout}`);
+  }
+  console.log("Generated types");
+});

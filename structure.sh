@@ -40,6 +40,7 @@ copyFiles() {
 
     echo "Copying files to cdn/$VERSION-$TS"
     cp -r dist/* "cdn/release/$VERSION-$TS"
+    rm "cdn/release/$VERSION-$TS/"*.tsbuildinfo
     echo "$INFO" > "cdn/release/$VERSION-$TS/info.txt"
 
     for API_NAME in "${API_NAMES[@]}"; do

@@ -16,10 +16,14 @@ export class OpEnv {
     if (typeof api === "string") {
       const apiString: string = api;
       try {
-        api = await Promise.any(this.#apiStringHandlers.map((handler) => handler(apiString))) as API;
+        api = (await Promise.any(
+          this.#apiStringHandlers.map((handler) => handler(apiString)),
+        )) as API;
       } catch (e) {
         console.error(e);
-        throw new Error(`No handler could process the API string: ${apiString}`);
+        throw new Error(
+          `No handler could process the API string: ${apiString}`,
+        );
       }
     }
 

@@ -9,7 +9,6 @@ export interface AutoInitializableAPIConstructor extends ApiConstructor {
   "party.openv.resolve.autoInstall"?: string | ((openv: OpEnv) => Promise<API>);
 }
 
-
 export interface Resolver {
   initialize?(openv: OpEnv): Promise<void>;
 
@@ -56,11 +55,17 @@ export class ApiResolver implements Resolver {
     this.openv = openv;
 
     this.fs = await getOrInstallAPI<FsApi>(this.openv, "party.openv.fs");
-    this.resolveApi = await getOrInstallAPI<ResolveApi>(this.openv, "party.openv.resolve");
+    this.resolveApi = await getOrInstallAPI<ResolveApi>(
+      this.openv,
+      "party.openv.resolve",
+    );
     try {
       await this.fs.makeDir(this.apiDir, true);
     } catch (err) {
-      console.error(`Failed to create API cache directory at ${this.apiDir}:`, err);
+      console.error(
+        `Failed to create API cache directory at ${this.apiDir}:`,
+        err,
+      );
       throw err;
     }
 
@@ -70,39 +75,59 @@ export class ApiResolver implements Resolver {
         throw new Error(`Could not resolve API: ${apiString}`);
       }
       const module = await this.resolveApi.import(localPath);
-      console.log("GOT MODULE:", module)
-      if (!module || typeof module !== "object" || typeof module.default !== "function") {
+      console.log("GOT MODULE:", module);
+      if (
+        !module ||
+        typeof module !== "object" ||
+        typeof module.default !== "function"
+      ) {
         throw new Error(`Invalid API module: ${apiString}`);
       }
 
       console.log(`Resolved API "${apiString}" to`, localPath);
       const ApiConstructor = module.default as AutoInitializableAPIConstructor;
 
-      if (typeof ApiConstructor["party.openv.resolve.autoInstall"] === "function") {
-        const api = await ApiConstructor["party.openv.resolve.autoInstall"](this.openv);
+      if (
+        typeof ApiConstructor["party.openv.resolve.autoInstall"] === "function"
+      ) {
+        const api = await ApiConstructor["party.openv.resolve.autoInstall"](
+          this.openv,
+        );
         this.openv.installAPI(api);
         return api;
-      } else if (typeof ApiConstructor["party.openv.resolve.autoInstall"] === "string") {
+      } else if (
+        typeof ApiConstructor["party.openv.resolve.autoInstall"] === "string"
+      ) {
         const expectedName = ApiConstructor["party.openv.resolve.autoInstall"];
         const api = new ApiConstructor();
         if (api.name !== expectedName) {
-          throw new Error(`API module name mismatch: expected "${expectedName}", got "${api.name}"`);
+          throw new Error(
+            `API module name mismatch: expected "${expectedName}", got "${api.name}"`,
+          );
         }
         this.openv.installAPI(api);
         return api;
       }
-      throw new Error(`API module does not support automatic installation: ${apiString}`);
+      throw new Error(
+        `API module does not support automatic installation: ${apiString}`,
+      );
     });
   }
 
-  async resolve(path: string, _cwd?: string, options: {
-    repos?: string[];
-    version?: string;
-  } = {}): Promise<string | null> {
+  async resolve(
+    path: string,
+    _cwd?: string,
+    options: {
+      repos?: string[];
+      version?: string;
+    } = {},
+  ): Promise<string | null> {
     if (!options.repos) {
       options.repos = await this.openv.registry.read("party.openv.repos");
       if (!Array.isArray(options.repos)) {
-        console.warn(`No valid repos found in registry for party.openv.repos, defaulting to empty list.`);
+        console.warn(
+          `No valid repos found in registry for party.openv.repos, defaulting to empty list.`,
+        );
         options.repos = [];
       }
     }
@@ -111,28 +136,49 @@ export class ApiResolver implements Resolver {
     if (path.startsWith("api:")) {
       const apiString = path.slice(4);
       try {
-        const filename = await this.fs.resolve(`${apiString}.${options.version}.js`, this.apiDir);
+        const filename = await this.fs.resolve(
+          `${apiString}.${options.version}.js`,
+          this.apiDir,
+        );
         if (!filename) throw new Error("Not found");
         return filename;
-      } catch { }
+      } catch {}
 
       try {
-        const apiBlob = await Promise.any(options.repos.map(async (repo) => {
-          const res = await fetch(`${repo.replace(/\/+$/, "")}/${apiString.replace(/\./g, "/")}/${options.version}/bundle.js`);
-          if (!res.ok) {
-            throw new Error(`Failed to fetch API from ${repo}: ${res.status} ${res.statusText}`);
-          }
-          return await res.blob();
-        }));
+        const apiBlob = await Promise.any(
+          options.repos.map(async (repo) => {
+            const res = await fetch(
+              `${repo.replace(/\/+$/, "")}/${apiString.replace(/\./g, "/")}/${
+                options.version
+              }/bundle.js`,
+            );
+            if (!res.ok) {
+              throw new Error(
+                `Failed to fetch API from ${repo}: ${res.status} ${res.statusText}`,
+              );
+            }
+            return await res.blob();
+          }),
+        );
 
-        console.log(`Fetched API "${apiString}" from remote repo, caching to local fs...`);
+        console.log(
+          `Fetched API "${apiString}" from remote repo, caching to local fs...`,
+        );
 
-        await this.fs.writeFile(`${this.apiDir}/${apiString}.${options.version}.js`, apiBlob);
+        await this.fs.writeFile(
+          `${this.apiDir}/${apiString}.${options.version}.js`,
+          apiBlob,
+        );
 
-        console.log(`Cached API "${apiString}" to local fs at ${this.apiDir}/${apiString}.${options.version}.js`);
+        console.log(
+          `Cached API "${apiString}" to local fs at ${this.apiDir}/${apiString}.${options.version}.js`,
+        );
         console.log(`dir listing:`, await this.fs.readDir(this.apiDir));
 
-        return await this.fs.resolve(`${apiString}.${options.version}.js`, this.apiDir);
+        return await this.fs.resolve(
+          `${apiString}.${options.version}.js`,
+          this.apiDir,
+        );
       } catch (err) {
         console.error(`Failed to resolve API "${apiString}": ${err.message}`);
       }
@@ -141,7 +187,10 @@ export class ApiResolver implements Resolver {
   }
 }
 
-async function getOrInstallAPI<T extends API>(openv: OpEnv, name: string): Promise<T> {
+async function getOrInstallAPI<T extends API>(
+  openv: OpEnv,
+  name: string,
+): Promise<T> {
   let api: API;
   try {
     api = openv.getAPI(name);
@@ -169,10 +218,13 @@ export default class ResolveApi implements API, Resolver {
 
     console.log(`Resolver for namespace "${namespace}" initialized`);
 
-    const services = await getOrInstallAPI<ServiceApi>(this.openv, "party.openv.service");
+    const services = await getOrInstallAPI<ServiceApi>(
+      this.openv,
+      "party.openv.service",
+    );
     services.defineFunction(
       "resolve",
-      resolver.resolve.bind(resolver),
+      resolver.resolve.bind(resolver) as any,
       namespace,
       {
         root: this.name + ".resolver",
@@ -181,7 +233,10 @@ export default class ResolveApi implements API, Resolver {
   }
 
   async unregister(namespace: string) {
-    const services = await getOrInstallAPI<ServiceApi>(this.openv, "party.openv.service");
+    const services = await getOrInstallAPI<ServiceApi>(
+      this.openv,
+      "party.openv.service",
+    );
     services.undefineFunction("resolve", namespace, {
       root: this.name + ".resolver",
     });
@@ -189,16 +244,24 @@ export default class ResolveApi implements API, Resolver {
 
   async resolve(path: string, cwd?: string): Promise<string | null> {
     if (!cwd) {
-      const processes = await getOrInstallAPI<ProcessesApi>(this.openv, "party.openv.processes");
+      const processes = await getOrInstallAPI<ProcessesApi>(
+        this.openv,
+        "party.openv.processes",
+      );
       // Try to get CWD. This will only work if called inside a process (global env.PID is set)
       try {
         cwd = await processes.getCwd();
       } catch {
-        console.warn("Tried to run getCwd from ProcessesApi outside of a process, defaulting to /");
+        console.warn(
+          "Tried to run getCwd from ProcessesApi outside of a process, defaulting to /",
+        );
         cwd = "/";
       }
     }
-    const services = await getOrInstallAPI<ServiceApi>(this.openv, "party.openv.service");
+    const services = await getOrInstallAPI<ServiceApi>(
+      this.openv,
+      "party.openv.service",
+    );
 
     if (!path.includes(":")) {
       // No namespace, assume fs
@@ -234,11 +297,17 @@ export default class ResolveApi implements API, Resolver {
 
     const data = await fs.readFile(resolvedPath);
 
-    if (typeof process !== "undefined" && process.versions && process.versions.node) {
+    if (
+      typeof process !== "undefined" &&
+      process.versions &&
+      process.versions.node
+    ) {
       const buf = Buffer.from(await data.arrayBuffer());
       url = "data:application/javascript;base64," + buf.toString("base64");
     } else {
-      url = URL.createObjectURL(new Blob([data], { type: "application/javascript" }));
+      url = URL.createObjectURL(
+        new Blob([data], { type: "application/javascript" }),
+      );
     }
 
     return import(url);

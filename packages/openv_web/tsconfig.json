@@ -1,0 +1,7 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outFile": "../../dist/openv_web.bundle.d.ts"
+  },
+  "include": ["**/*.ts"]
+}
