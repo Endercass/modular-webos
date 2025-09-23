@@ -1,13 +1,13 @@
 import type { OpEnv } from "../../../../openv/mod";
 import type { Compositor, WindowContent, WindowData } from "./compositor";
-import type { ServiceApi } from "../service/mod";
-import type { SurfacesApi } from "../surface/mod";
+import type ServiceApi from "../service/mod";
+import type SurfacesApi from "../surface/mod";
 
-export class ReferenceCompositor implements Compositor<HTMLElement> {
+export default class ReferenceCompositor implements Compositor<HTMLElement> {
   name = "party.openv.compositor";
   openv: OpEnv;
 
-  async populate(openv: OpEnv) {
+  async initialize(openv: OpEnv) {
     this.openv = openv;
   }
 
@@ -17,7 +17,7 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
       windows = (await this.openv.registry.read(
         "party.openv.compositor.windows",
       )) as number[];
-    } catch {}
+    } catch { }
     for (const wid of windows) {
       await this.openv.registry.delete(`party.openv.compositor.win.${wid}.wid`);
       await this.openv.registry.delete(
@@ -59,7 +59,7 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
       displays = (await this.openv.registry.read(
         "party.openv.compositor.displays",
       )) as string[];
-    } catch {}
+    } catch { }
     for (const display of displays) {
       await this.openv.registry.delete(
         `party.openv.compositor.${display}.width`,
@@ -219,7 +219,7 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
       wins = (await this.openv.registry.read(
         "party.openv.compositor.windows",
       )) as number[];
-    } catch {}
+    } catch { }
 
     wins.push(info.wid);
     await this.openv.registry.write("party.openv.compositor.windows", wins);
@@ -860,7 +860,7 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
       wins = (await this.openv.registry.read(
         "party.openv.compositor.windows",
       )) as number[];
-    } catch {}
+    } catch { }
 
     wins = wins.filter((w) => w !== wid);
     await this.openv.registry.write("party.openv.compositor.windows", wins);
@@ -933,12 +933,12 @@ export class ReferenceCompositor implements Compositor<HTMLElement> {
       maxwidth = (await this.openv.registry.read(
         `party.openv.compositor.win.${wid}.maxwidth`,
       )) as number;
-    } catch {}
+    } catch { }
     try {
       maxheight = (await this.openv.registry.read(
         `party.openv.compositor.win.${wid}.maxheight`,
       )) as number;
-    } catch {}
+    } catch { }
     return { maxwidth, maxheight };
   }
 

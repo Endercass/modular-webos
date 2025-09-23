@@ -1,6 +1,6 @@
 import type { API, OpEnv, RegistryValue } from "../../../../openv/mod";
-import type { IPCApi } from "../ipc/mod";
-import type { ServiceApi } from "../service/mod";
+import type IPCApi from "../ipc/mod";
+import type ServiceApi from "../service/mod";
 
 /**
  * ipv4 or ipv6 address; no DNS resolution
@@ -103,7 +103,7 @@ export class LoopbackNetBus implements DuplexNetBus {
   }
 }
 
-export class NetApi implements API, DuplexNetBus {
+export default class NetApi implements API, DuplexNetBus {
   name = "party.openv.net";
 
   openv: OpEnv;
@@ -112,7 +112,7 @@ export class NetApi implements API, DuplexNetBus {
   inbound: ReadableStream<NetPacket>;
   outbound: WritableStream<NetPacket>;
 
-  async populate(openv: OpEnv): Promise<void> {
+  async initialize(openv: OpEnv): Promise<void> {
     this.openv = openv;
 
     this.inbound = new ReadableStream<NetPacket>({
@@ -208,8 +208,8 @@ export class NetApi implements API, DuplexNetBus {
           root: this.name + ".bus",
         });
       },
-      close: async () => {},
-      abort: async () => {},
+      close: async () => { },
+      abort: async () => { },
     });
   }
 

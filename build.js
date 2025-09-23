@@ -26,7 +26,7 @@ const ivmplugin = {
     build.onResolve({ filter: /^isolated-vm$/ }, (args) => {
       return { path: args.path, namespace: "ivm-ns" };
     });
-    
+
     build.onLoad({ filter: /.*/, namespace: "ivm-ns" }, () => {
       return {
         // contents: `module.exports = require('./isolated_vm').ivm;`,
@@ -87,20 +87,6 @@ await Promise.all([
       })
       .then(resultPrinter(api)),
   ),
-  // everything (developer build)
-  esbuild
-    .build({
-      entryPoints: ["./packages/mod.ts"],
-      minify: true,
-      bundle: true,
-      format: "esm",
-      outfile: "./dist/openv_all.bundle.js",
-      external: ["./isolated_vm", "node:module", "node:fs/promises"],
-      plugins: [
-        ivmplugin,
-      ],
-    })
-    .then(resultPrinter("openv_all")),
 ]);
 
 import { copyFile } from "fs/promises";

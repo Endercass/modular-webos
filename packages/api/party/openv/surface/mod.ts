@@ -1,15 +1,15 @@
 import type { API, OpEnv, RegistryValue } from "../../../../openv/mod.ts";
-import type { IPCApi } from "../ipc/mod.ts";
-import type { ServiceApi } from "../service/mod.ts";
+import type IPCApi from "../ipc/mod.ts";
+import type ServiceApi from "../service/mod.ts";
 import type { Surface } from "./surface.ts";
 import { CanvasSurface } from "./surface_canvas.ts";
 
 export * from "./surface.ts";
 
-export class SurfacesApi implements API {
+export default class SurfacesApi implements API {
   name = "party.openv.surface";
   openv: OpEnv;
-  async populate(openv: OpEnv): Promise<void> {
+  async initialize(openv: OpEnv): Promise<void> {
     this.openv = openv;
   }
 

@@ -1,6 +1,6 @@
 import type { API, OpEnv } from "../../../../openv/mod";
-import type { ProcessesApi } from "../processes/mod";
-import type { ServiceApi } from "../service/mod";
+import type ProcessesApi from "../processes/mod";
+import type ServiceApi from "../service/mod";
 
 export interface FsStats {
   type: "DIRECTORY" | "FILE";
@@ -58,6 +58,8 @@ export class TempFS implements FsImpl {
 
   #getEnt(path: string) {
     const ent = this.ents.get(path);
+    // console.log("getEnt", path, ent);
+    // console.log(this.ents);
     if (!ent) throw new Error("No such file or directory: " + path);
     return ent;
   }
@@ -75,6 +77,7 @@ export class TempFS implements FsImpl {
       const parts = path.split("/").filter((p) => p.length > 0);
       const name = parts.pop()!;
       const dirPath = "/" + parts.join("/");
+      console.log("dirPath:", dirPath);
       const dir = this.#getEnt(dirPath);
       if (dir.stats.type !== "DIRECTORY") {
         throw new Error("Not a directory: " + dirPath);
@@ -96,8 +99,13 @@ export class TempFS implements FsImpl {
         },
         data,
       };
-      this.ents.set(path, ent);
     }
+    ent.stats.size = data.size;
+    ent.stats.mtime = now;
+    ent.stats.ctime = now;
+    (ent as any).data = data;
+
+    this.ents.set(path, ent);
   }
   async unlink(path: string): Promise<void> {
     const ent = this.#getEnt(path);
@@ -118,10 +126,11 @@ export class TempFS implements FsImpl {
     const parts = path.split("/").filter((p) => p.length > 0);
     const name = parts.pop()!;
     const dirPath = "/" + parts.join("/");
-    const dir = this.ents.get(dirPath);
+    let dir = this.ents.get(dirPath);
     if (!dir) {
       if (recursive) {
         await this.makeDir(dirPath, true);
+        dir = this.ents.get(dirPath);
       } else {
         throw new Error("No such file or directory: " + dirPath);
       }
@@ -184,12 +193,12 @@ export class TempFS implements FsImpl {
   }
 }
 
-export class FsApi implements API, FsImpl {
+export default class FsApi implements API, FsImpl {
   name = "party.openv.fs";
 
   openv: OpEnv;
 
-  async populate(openv: OpEnv) {
+  async initialize(openv: OpEnv) {
     this.openv = openv;
   }
 
@@ -297,11 +306,11 @@ export class FsApi implements API, FsImpl {
       root: this.name + ".impl",
     }) as Promise<string[]>;
   }
-  async makeDir(path: string): Promise<void> {
+  async makeDir(path: string, recursive: boolean = false): Promise<void> {
     const services = this.openv.getAPI<ServiceApi>("party.openv.service");
     const [impl, local] = await this.#processPath(path);
 
-    await services.callFunction("makeDir", [local], impl, {
+    await services.callFunction("makeDir", [local, recursive], impl, {
       root: this.name + ".impl",
     });
     return;
@@ -375,6 +384,7 @@ export class FsApi implements API, FsImpl {
 
   async resolve(path: string, cwd?: string): Promise<string | null> {
     try {
+      console.log("Trying absolute path:", path);
       await this.stat(path);
       return path;
     } catch { }
@@ -384,24 +394,19 @@ export class FsApi implements API, FsImpl {
         "party.openv.processes",
       );
       // Try to get CWD. This will only work if called inside a process (global env.PID is set)
+      console.log("Calling getCwd to determine CWD. This will fail if executed in the runtime");
       cwd = await processes.getCwd();
-    }
-
-    if (path.startsWith("/")) {
-      try {
-        await this.stat(path);
-        return path;
-      } catch {
-        return null;
-      }
     }
 
     if (path.startsWith("./")) path = path.slice(2);
 
     const absPath = cwd.replace(/\/+$/g, "") + "/" + path;
 
+    console.log("Trying CWD path:", absPath);
+
     try {
       await this.stat(absPath);
+      console.log("Resolved path:", absPath);
       return absPath;
     } catch {
       return null;

@@ -1,6 +1,6 @@
 import type { RegistryValue, OpEnv, API } from "../../../../openv/mod";
-import type { IPCApi } from "../ipc/mod";
-import type { ServiceApi } from "../service/mod";
+import type IPCApi from "../ipc/mod";
+import type ServiceApi from "../service/mod";
 
 export interface Surface {
   clear: SurfaceClear;

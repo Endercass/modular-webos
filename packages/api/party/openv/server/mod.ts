@@ -4,11 +4,12 @@ import type {
   RefChannelMessage,
 } from "../../../../openv/mod";
 
-export class ServerApi {
+export default class ServerApi {
+  static "party.openv.resolve.autoInstall" = "party.openv.server";
   name = "party.openv.server";
   openv: OpEnv;
 
-  async populate(openv: OpEnv): Promise<void> {
+  async initialize(openv: OpEnv): Promise<void> {
     this.openv = openv;
   }
 

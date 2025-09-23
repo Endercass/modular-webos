@@ -1,9 +1,10 @@
 import type { API, OpEnv } from "../../../../openv/mod";
 
-export class IdentityApi implements API {
+export default class IdentityApi implements API {
   name = "party.openv.identity";
   openv: OpEnv;
-  async populate(os: OpEnv): Promise<void> {
+
+  async initialize(os: OpEnv): Promise<void> {
     this.openv = os;
   }
 

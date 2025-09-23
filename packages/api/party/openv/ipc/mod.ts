@@ -1,10 +1,10 @@
 import type { OpEnv, RegistryValue, API } from "../../../../openv/mod";
 
-export class IPCApi implements API {
+export default class IPCApi implements API {
   name = "party.openv.ipc";
   openv: OpEnv;
 
-  async populate(openv: OpEnv): Promise<void> {
+  async initialize(openv: OpEnv): Promise<void> {
     this.openv = openv;
   }
 

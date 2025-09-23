@@ -1,13 +1,12 @@
 import {
-  createListenerQueue,
   type RegistryValue,
   type OpEnv,
   type API,
 } from "../../../../openv/mod";
-import type { ServerApi } from "../server/mod";
-import type { ServiceApi } from "../service/mod";
+import type ServiceApi from "../service/mod";
 
-export class ProcessesApi implements API {
+export default class ProcessesApi implements API {
+  static "party.openv.resolve.autoInstall" = "party.openv.processes";
   name = "party.openv.processes";
   openv: OpEnv;
 
@@ -23,7 +22,7 @@ export class ProcessesApi implements API {
     return pid;
   }
 
-  async populate(openv: OpEnv): Promise<void> {
+  async initialize(openv: OpEnv): Promise<void> {
     this.openv = openv;
   }
 
@@ -117,12 +116,14 @@ export class ProcessesApi implements API {
       root?: string;
     } = {},
   ) {
+    const globalObj = globalThis as { env?: { PID: number } };
+    console.log("Global object:", globalObj, "env:", globalObj.env);
     options.root ??= this.name;
     if (typeof pid !== "number") {
-      if (!("env" in window) || !("PID" in (window.env as any))) {
+      if (!("env" in globalObj) || !("PID" in globalObj.env!)) {
         throw new Error("Could not assume PID outside of a process!");
       }
-      pid = (window.env as any).PID;
+      pid = globalObj.env!.PID;
     }
 
     let cwd: string = "/";

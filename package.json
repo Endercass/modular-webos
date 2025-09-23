@@ -1,7 +1,9 @@
 {
   "type": "module",
+  "version": "0.0.0",
   "scripts": {
-    "build": "node build.js"
+    "build": "node build.js",
+    "structure": "bash structure.sh $npm_package_version party.openv.compositor party.openv.fs party.openv.identity party.openv.ipc party.openv.net party.openv.processes party.openv.resolve party.openv.server party.openv.service party.openv.surface"
   },
   "devDependencies": {
     "@types/node": "^24.3.1",
